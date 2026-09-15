@@ -41,6 +41,8 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
 
     private raiz: HTMLElement;
     private faixa: HTMLElement;
+    private buscaLinha: HTMLInputElement;
+    private chips: HTMLElement;
     private linhaBotao: HTMLElement;
     private botao: HTMLButtonElement;
     private rotuloBotao: HTMLElement;
@@ -73,6 +75,22 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
         this.faixa = document.createElement("div");
         this.faixa.className = "faixa";
         this.raiz.appendChild(this.faixa);
+
+        // A busca fica fora do container que e reconstruido a cada clique:
+        // recriar o input a cada tecla tiraria o foco no meio da digitacao.
+        this.buscaLinha = document.createElement("input");
+        this.buscaLinha.type = "search";
+        this.buscaLinha.className = "busca";
+        this.buscaLinha.placeholder = "Buscar";
+        this.buscaLinha.addEventListener("input", () => {
+            this.textoBusca = this.buscaLinha.value.trim().toLowerCase();
+            this.desenharChips();
+        });
+        this.faixa.appendChild(this.buscaLinha);
+
+        this.chips = document.createElement("div");
+        this.chips.className = "chips";
+        this.faixa.appendChild(this.chips);
 
         this.linhaBotao = document.createElement("div");
         this.linhaBotao.className = "linha-botao";
@@ -203,6 +221,19 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
 
     /** Escolhe o modo e redesenha so o que aquele modo usa. */
     private desenharTudo(): void {
+        // aplicado aqui, nao so ao abrir o painel: antes mexer em
+        // "Mostrar busca" no painel Formatar nao surtia efeito nenhum
+        // ate o usuario fechar e reabrir a arvore.
+        const mostrarBusca = this.config.painel.mostrarBusca.value;
+        this.busca.hidden = !mostrarBusca;
+        this.buscaLinha.hidden = !mostrarBusca;
+
+        if (!mostrarBusca && this.textoBusca) {
+            this.textoBusca = "";
+            this.busca.value = "";
+            this.buscaLinha.value = "";
+        }
+
         if (this.emLinha) {
             this.linhaBotao.hidden = true;
             this.painel.hidden = true;
@@ -225,9 +256,23 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
      * recortaria nas bordas do visual.
      */
     private desenharFaixa(): void {
-        this.faixa.textContent = "";
+        this.desenharChips();
+    }
+
+    private desenharChips(): void {
+        this.chips.textContent = "";
+        const busca = this.textoBusca;
 
         for (const pai of this.arvoreDados) {
+            const paiBate = pai.nome.toLowerCase().indexOf(busca) >= 0;
+            const filhosVisiveis = pai.filhos.filter(
+                f => paiBate || f.nome.toLowerCase().indexOf(busca) >= 0
+            );
+
+            if (busca && !paiBate && !filhosVisiveis.length) {
+                continue;
+            }
+
             const chaves = this.chavesDo(pai);
             const marcadas = chaves.filter(c => this.marcadas[c]).length;
             const todas = marcadas === chaves.length && chaves.length > 0;
@@ -245,11 +290,11 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
                 const caret = document.createElement("button");
                 caret.type = "button";
                 caret.className = "caret";
-                caret.classList.toggle("aberto", !!this.expandidos[pai.nome]);
-                caret.setAttribute("aria-expanded", String(!!this.expandidos[pai.nome]));
+                caret.classList.toggle("aberto", this.estaExpandido(pai.nome));
+                caret.setAttribute("aria-expanded", String(this.estaExpandido(pai.nome)));
                 caret.setAttribute("aria-label", "Expandir " + pai.nome);
                 caret.addEventListener("click", () => {
-                    this.expandidos[pai.nome] = !this.expandidos[pai.nome];
+                    this.expandidos[pai.nome] = !this.estaExpandido(pai.nome);
                     this.desenharFaixa();
                 });
                 chip.appendChild(caret);
@@ -275,15 +320,19 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
             });
 
             chip.appendChild(rotulo);
-            this.faixa.appendChild(chip);
+            this.chips.appendChild(chip);
 
-            if (this.temNivel2 && this.expandidos[pai.nome]) {
-                pai.filhos.forEach(filho => this.faixa.appendChild(this.chipFilho(filho)));
+            // busca ativa abre os ramos que casaram, senao o resultado
+            // ficaria escondido dentro de um pai recolhido
+            const expandido = busca ? true : this.estaExpandido(pai.nome);
+
+            if (this.temNivel2 && expandido) {
+                filhosVisiveis.forEach(filho => this.chips.appendChild(this.chipFilho(filho)));
             }
         }
 
-        this.faixa.appendChild(this.criarAcao("Tudo", () => this.marcarTodas(true)));
-        this.faixa.appendChild(this.criarAcao("Limpar", () => this.marcarTodas(false)));
+        this.chips.appendChild(this.criarAcao("Tudo", () => this.marcarTodas(true)));
+        this.chips.appendChild(this.criarAcao("Limpar", () => this.marcarTodas(false)));
     }
 
     private chipFilho(filho: Filho): HTMLElement {
@@ -397,13 +446,17 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
         this.arvoreDados = ordem.map(nome => indice[nome]);
         this.arvoreDados.forEach(pai => pai.filhos.sort((a, b) => a.nome.localeCompare(b.nome)));
 
-        if (this.config.painel.expandirTudo.value) {
-            this.arvoreDados.forEach(pai => {
-                if (this.expandidos[pai.nome] === undefined) {
-                    this.expandidos[pai.nome] = true;
-                }
-            });
-        }
+    }
+
+    /**
+     * `expandidos` guarda apenas o que o usuario clicou; o resto segue o
+     * ajuste "Comecar expandido". Antes o ajuste era semeado uma vez em
+     * expandidos, entao desliga-lo depois nao recolhia mais nada - o botao
+     * so funcionava numa direcao.
+     */
+    private estaExpandido(nome: string): boolean {
+        const escolha = this.expandidos[nome];
+        return escolha === undefined ? this.config.painel.expandirTudo.value : escolha;
     }
 
     /** Todas as folhas existentes, na forma usada por `marcadas`. */
@@ -537,7 +590,6 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
     private alternarPainel(): void {
         this.aberto = !this.aberto;
         this.painel.hidden = !this.aberto;
-        this.busca.hidden = !this.config.painel.mostrarBusca.value;
 
         if (this.aberto) {
             this.desenharArvore();
@@ -562,7 +614,7 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
             this.arvore.appendChild(this.linhaPai(pai));
 
             // busca ativa abre os ramos que casaram, senao o resultado ficaria escondido
-            const expandido = busca ? true : !!this.expandidos[pai.nome];
+            const expandido = busca ? true : this.estaExpandido(pai.nome);
 
             if (this.temNivel2 && expandido) {
                 for (const filho of filhosVisiveis) {
@@ -580,10 +632,10 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
             const caret = document.createElement("button");
             caret.type = "button";
             caret.className = "caret";
-            caret.classList.toggle("aberto", !!this.expandidos[pai.nome]);
+            caret.classList.toggle("aberto", this.estaExpandido(pai.nome));
             caret.setAttribute("aria-label", "Expandir " + pai.nome);
             caret.addEventListener("click", () => {
-                this.expandidos[pai.nome] = !this.expandidos[pai.nome];
+                this.expandidos[pai.nome] = !this.estaExpandido(pai.nome);
                 this.desenharArvore();
             });
             linha.appendChild(caret);

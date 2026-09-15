@@ -41,13 +41,28 @@
 /* modo linha: chips que quebram na horizontal, igual ao Seletor de Data */
 .faixa {
   display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+  min-height: 0;
+
+  /* a busca acompanha o alinhamento dos chips e nao estica na linha toda */
+  > .busca {
+    flex: 0 0 auto;
+    align-self: var(--alinhamento);
+    max-width: 240px;
+  }
+}
+
+.chips {
+  display: flex;
   flex-wrap: wrap;
   justify-content: var(--alinhamento);
   align-items: center;
-  gap: 6px;
   align-content: center;
-  overflow-y: auto;
+  gap: 6px;
   min-height: 0;
+  overflow-y: auto;
 }
 
 .filtro-hierarquia.modo-linha {
