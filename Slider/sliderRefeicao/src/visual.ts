@@ -9,6 +9,9 @@ import VisualUpdateOptions = powerbi.extensibility.visual.VisualUpdateOptions;
 import { FormattingSettingsService } from "powerbi-visuals-utils-formattingmodel";
 import { BasicFilter, IBasicFilter, IFilterColumnTarget } from "powerbi-models";
 
+import { limitar } from "../../comum/numeros";
+import { montarAlvo, emBranco } from "../../comum/alvo";
+import { cabemEm, encurtar } from "../../comum/rotulos";
 import { ConfiguracoesVisual } from "./settings";
 import { iconePara, nosDoIcone } from "./icones";
 import "../style/visual.less";
@@ -55,13 +58,6 @@ const DUR = 220;
 /** Nome do objeto e da propriedade que guardam o filtro (ver capabilities.json). */
 const OBJETO_FILTRO = "geral";
 const PROP_FILTRO = "filtro";
-
-function limitar(valor: number, minimo: number, maximo: number): number {
-    if (!isFinite(valor)) {
-        return minimo;
-    }
-    return Math.max(minimo, Math.min(maximo, valor));
-}
 
 export class Visual implements powerbi.extensibility.visual.IVisual {
     private host: IVisualHost;
@@ -196,7 +192,7 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
         }
         this.mostrarVazio(false);
 
-        this.alvoFiltro = this.montarAlvo(categoria.source);
+        this.alvoFiltro = montarAlvo(categoria.source.queryName).alvo;
 
         if (!this.alvoFiltro) {
             this.mostrarVazio(true, "Este campo veio como hierarquia. Clique na seta dele no "
@@ -212,7 +208,7 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
         // geraria In ["null"], que nunca casa com o branco real.
         const naoBrancos = categoria.values
             .map((valor, i) => ({ valor: valor, i: i }))
-            .filter(par => par.valor !== null && par.valor !== undefined && par.valor !== "");
+            .filter(par => !emBranco(par.valor));
 
         this.pontos = naoBrancos.map(({ valor, i: indiceOriginal }) => {
             const nome = String(valor);
@@ -248,27 +244,6 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
     // ------------------------------------------------------------------
     // filtro
     // ------------------------------------------------------------------
-
-    /**
-     * Alvo do filtro no modelo semantico.
-     *
-     * O nome da coluna sai do queryName ("Tabela.Coluna"), nunca do
-     * displayName: displayName e o rotulo exibido, que o usuario pode
-     * renomear no painel de campos. Renomeado, o filtro apontaria para uma
-     * coluna inexistente e o Power BI o descartaria sem avisar.
-     *
-     * queryName com mais de um ponto e hierarquia; devolve nulo para o
-     * visual explicar o que fazer em vez de falhar calado.
-     */
-    private montarAlvo(fonte: powerbi.DataViewMetadataColumn): IFilterColumnTarget {
-        const partes = (fonte.queryName || "").split(".");
-
-        if (partes.length !== 2 || !partes[0] || !partes[1]) {
-            return null;
-        }
-
-        return { table: partes[0], column: partes[1] };
-    }
 
     /**
      * Recoloca as alcas a partir do filtro que ja esta no relatorio.
@@ -549,10 +524,8 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
             ? (this.layout.dir - this.layout.esq) / (total - 1) - 6
             : this.layout.dir - this.layout.esq;
 
-        const maximo = Math.max(3, Math.floor(larguraDisponivel / (this.layout.fonte * 0.55)));
-
-        return (texto: string) =>
-            texto.length > maximo ? texto.substring(0, maximo - 1) + "…" : texto;
+        const maximo = cabemEm(larguraDisponivel, this.layout.fonte);
+        return (texto: string) => encurtar(texto, maximo);
     }
 
     private desenharEstado(animar: boolean): void {

@@ -15,6 +15,8 @@ import {
     TupleValueType
 } from "powerbi-models";
 
+import { limitar } from "../../comum/numeros";
+import { montarAlvo, emBranco } from "../../comum/alvo";
 import { ConfiguracoesVisual } from "./settings";
 import "../style/visual.less";
 
@@ -221,8 +223,8 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
         const cat2 = categorias.length > 1 ? categorias[1] : null;
         this.temNivel2 = !!cat2;
 
-        this.alvo1 = this.montarAlvo(cat1.source);
-        this.alvo2 = cat2 ? this.montarAlvo(cat2.source) : null;
+        this.alvo1 = montarAlvo(cat1.source.queryName).alvo;
+        this.alvo2 = cat2 ? montarAlvo(cat2.source.queryName).alvo : null;
 
         if (!this.alvo1 || (this.temNivel2 && !this.alvo2)) {
             this.semCampo("Um dos campos veio como hierarquia. Clique na seta dele no "
@@ -414,47 +416,12 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
     // dados
     // ------------------------------------------------------------------
 
-    /**
-     * Alvo do filtro no modelo semantico.
-     *
-     * O nome da coluna sai do queryName ("Tabela.Coluna"), nunca do
-     * displayName: displayName e o rotulo exibido, que o usuario pode
-     * renomear no painel de campos. Renomeado, o filtro apontaria para uma
-     * coluna inexistente e o Power BI o descartaria sem avisar.
-     *
-     * queryName com mais de um ponto e hierarquia; devolve nulo para o
-     * visual explicar o que fazer em vez de falhar calado.
-     */
-    private montarAlvo(fonte: powerbi.DataViewMetadataColumn): IFilterColumnTarget {
-        const partes = (fonte.queryName || "").split(".");
-
-        if (partes.length !== 2 || !partes[0] || !partes[1]) {
-            return null;
-        }
-
-        return { table: partes[0], column: partes[1] };
-    }
-
-    /**
-     * As duas categorias vem alinhadas linha a linha, com repeticao.
-     * Agrupa por nivel 1 e remove filhos duplicados.
-     */
-    /**
-     * PrimitiveValueType do powerbi-models e string | number | boolean: nao
-     * existe valor de filtro que represente branco. Um chip para branco
-     * geraria a condicao In ["null"], que nunca casa com o branco real,
-     * entao essas linhas ficam de fora da lista.
-     */
-    private emBranco(valor: powerbi.PrimitiveValue): boolean {
-        return valor === null || valor === undefined || valor === "";
-    }
-
     private montarArvore(valores1: powerbi.PrimitiveValue[], valores2: powerbi.PrimitiveValue[]): void {
         const indice: Record<string, Pai> = {};
         const ordem: string[] = [];
 
         valores1.forEach((bruto, i) => {
-            if (this.emBranco(bruto) || (valores2 && this.emBranco(valores2[i]))) {
+            if (emBranco(bruto) || (valores2 && emBranco(valores2[i]))) {
                 return;
             }
 
@@ -579,8 +546,8 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
         // Uma escala unica multiplica TODAS as medidas. Escalar so parte delas
         // deixava o resultado desproporcional: pilula gorda com letra miuda,
         // ou cantos e vaos encolhendo conforme o chip cresce.
-        const escala = Math.max(50, Math.min(ap.tamanho.value, 300)) / 100;
-        const fonteBase = Math.max(6, Math.min(ap.fonte.fontSize.value, 32));
+        const escala = limitar(ap.tamanho.value, 50, 300) / 100;
+        const fonteBase = limitar(ap.fonte.fontSize.value, 6, 32);
 
         estilo.setProperty("--cor-destaque", ap.corDestaque.value.value);
         estilo.setProperty("--cor-chip", ap.corChip.value.value);
@@ -600,7 +567,7 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
         estilo.setProperty("--pad-h", (15 * escala).toFixed(1) + "px");
         estilo.setProperty(
             "--raio",
-            (Math.max(0, Math.min(ap.raio.value, 40)) * escala).toFixed(1) + "px"
+            (limitar(ap.raio.value, 0, 40) * escala).toFixed(1) + "px"
         );
         estilo.setProperty("--alinhamento", this.config.botao.alinhamento.value.value as string);
         estilo.setProperty("--gap", (6 * escala).toFixed(1) + "px");

@@ -9,73 +9,18 @@ import { FormattingSettingsService } from "powerbi-visuals-utils-formattingmodel
 import { AdvancedFilter, IAdvancedFilter, IFilterColumnTarget } from "powerbi-models";
 
 import { ConfiguracoesVisual } from "./settings";
+import { limitar } from "../../comum/numeros";
+import { montarAlvo } from "../../comum/alvo";
+import {
+    Periodo, Intervalo,
+    inicioDoDia, fimDoDia, somarDias,
+    paraCampo, doCampo, paraIsoLocal,
+    calcularPeriodo, reconhecerPeriodo, ordenar
+} from "../../comum/datas";
 import "../style/visual.less";
 
 const OBJETO_FILTRO = "geral";
 const PROP_FILTRO = "filtro";
-
-/** Identificador de cada chip. "livre" e o intervalo digitado a mao. */
-type Periodo = "hoje" | "sete" | "trinta" | "mes" | "ano" | "tudo" | "livre";
-
-interface Intervalo {
-    de: Date;
-    ate: Date;
-}
-
-function inicioDoDia(base: Date): Date {
-    return new Date(base.getFullYear(), base.getMonth(), base.getDate(), 0, 0, 0, 0);
-}
-
-function fimDoDia(base: Date): Date {
-    return new Date(base.getFullYear(), base.getMonth(), base.getDate(), 23, 59, 59, 999);
-}
-
-function somarDias(base: Date, dias: number): Date {
-    const copia = new Date(base.getTime());
-    copia.setDate(copia.getDate() + dias);
-    return copia;
-}
-
-/** "2026-09-15", no fuso local - toISOString converteria para UTC e podia pular um dia. */
-function paraCampo(data: Date): string {
-    const mes = String(data.getMonth() + 1).padStart(2, "0");
-    const dia = String(data.getDate()).padStart(2, "0");
-    return data.getFullYear() + "-" + mes + "-" + dia;
-}
-
-/**
- * "2026-09-15T00:00:00.000", montado a partir dos componentes locais e SEM o
- * sufixo Z.
- *
- * toISOString devolveria o mesmo instante em UTC: num fuso UTC-3 o inicio do
- * dia local vira 03:00Z. As datas do modelo semantico nao tem fuso, entao a
- * condicao ">= 03:00" descarta as linhas gravadas em 00:00 e o dia inteiro
- * fica de fora do filtro.
- */
-function paraIsoLocal(data: Date): string {
-    const dois = (n: number) => String(n).padStart(2, "0");
-    return data.getFullYear()
-        + "-" + dois(data.getMonth() + 1)
-        + "-" + dois(data.getDate())
-        + "T" + dois(data.getHours())
-        + ":" + dois(data.getMinutes())
-        + ":" + dois(data.getSeconds())
-        + "." + String(data.getMilliseconds()).padStart(3, "0");
-}
-
-function doCampo(texto: string): Date {
-    const partes = texto.split("-").map(Number);
-    if (partes.length !== 3 || partes.some(isNaN)) {
-        return null;
-    }
-    return new Date(partes[0], partes[1] - 1, partes[2]);
-}
-
-function mesmoDia(a: Date, b: Date): boolean {
-    return a.getFullYear() === b.getFullYear()
-        && a.getMonth() === b.getMonth()
-        && a.getDate() === b.getDate();
-}
 
 export class Visual implements powerbi.extensibility.visual.IVisual {
     private host: IVisualHost;
@@ -197,7 +142,9 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
         // nivel que chega aqui e Ano - um inteiro. Checar o tipo antes diria
         // "a coluna e Numero", culpando a coluna, quando a coluna esta certa
         // e o problema e a hierarquia no lugar dela.
-        this.alvoFiltro = this.montarAlvo(categoria.source);
+        const achado = montarAlvo(categoria.source.queryName, true);
+        this.alvoFiltro = achado.alvo;
+        this.viaHierarquia = achado.origem === "hierarquiaData";
 
         if (!this.alvoFiltro) {
             this.mostrarAviso(
@@ -274,44 +221,6 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
     // ------------------------------------------------------------------
 
     /**
-     * Alvo do filtro no modelo semantico.
-     *
-     * O nome da coluna sai do queryName ("Tabela.Coluna"), nunca do
-     * displayName: displayName e o rotulo exibido, que o usuario pode
-     * renomear no painel de campos. Renomeado, o filtro apontaria para uma
-     * coluna inexistente e o Power BI o descartaria sem avisar.
-     *
-     * queryName com mais de um ponto e hierarquia de data (Ano/Trimestre/
-     * Mes/Dia). Nao da para filtrar intervalo sobre ela, entao devolve nulo
-     * e o visual explica o que fazer.
-     */
-    private montarAlvo(fonte: powerbi.DataViewMetadataColumn): IFilterColumnTarget {
-        const partes = (fonte.queryName || "").split(".");
-
-        if (!partes[0] || !partes[1]) {
-            return null;
-        }
-
-        // Tabela.Coluna - o campo foi arrastado como coluna
-        if (partes.length === 2) {
-            this.viaHierarquia = false;
-            return { table: partes[0], column: partes[1] };
-        }
-
-        // Tabela.Coluna.Variacao.Hierarquia.Nivel - hierarquia de data
-        // automatica do Power BI. O nivel que chega aqui e Ano, mas a coluna
-        // base e a segunda parte, entao da para filtrar nela mesmo assim.
-        if (partes.length === 5) {
-            this.viaHierarquia = true;
-            return { table: partes[0], column: partes[1] };
-        }
-
-        // hierarquia definida a mao: partes[1] e o nome da hierarquia, nao de
-        // uma coluna, e nao ha como deduzir qual coluna esta por baixo
-        return null;
-    }
-
-    /**
      * Le o filtro que ja esta no relatorio e descobre qual chip corresponde.
      * Sem isso, reabrir o relatorio mostraria nenhum chip aceso enquanto os
      * dados continuam filtrados.
@@ -330,39 +239,7 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
         const ate = inicioDoDia(valores[1]);
 
         this.livre = { de: de, ate: ate };
-        this.periodo = this.reconhecer(de, ate);
-    }
-
-    /** Compara o intervalo vindo do relatorio com cada preset. */
-    private reconhecer(de: Date, ate: Date): Periodo {
-        const candidatos: Periodo[] = ["hoje", "sete", "trinta", "mes", "ano"];
-        for (const nome of candidatos) {
-            const faixa = this.calcular(nome);
-            if (faixa && mesmoDia(faixa.de, de) && mesmoDia(faixa.ate, ate)) {
-                return nome;
-            }
-        }
-        return "livre";
-    }
-
-    /** Todos os presets sao relativos a hoje, entao nao precisam varrer a coluna. */
-    private calcular(periodo: Periodo): Intervalo {
-        const hoje = inicioDoDia(new Date());
-
-        switch (periodo) {
-            case "hoje":
-                return { de: hoje, ate: hoje };
-            case "sete":
-                return { de: somarDias(hoje, -6), ate: hoje };
-            case "trinta":
-                return { de: somarDias(hoje, -29), ate: hoje };
-            case "mes":
-                return { de: new Date(hoje.getFullYear(), hoje.getMonth(), 1), ate: hoje };
-            case "ano":
-                return { de: new Date(hoje.getFullYear(), 0, 1), ate: hoje };
-            default:
-                return null;
-        }
+        this.periodo = reconhecerPeriodo(de, ate, new Date());
     }
 
     private aplicarFiltro(intervalo: Intervalo): void {
@@ -397,8 +274,8 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
         // Uma escala unica multiplica TODAS as medidas. Escalar so parte delas
         // deixava o resultado desproporcional: pilula gorda com letra miuda,
         // ou cantos e vaos encolhendo conforme o chip cresce.
-        const escala = Math.max(50, Math.min(ap.tamanho.value, 300)) / 100;
-        const fonteBase = Math.max(6, Math.min(ap.fonte.fontSize.value, 32));
+        const escala = limitar(ap.tamanho.value, 50, 300) / 100;
+        const fonteBase = limitar(ap.fonte.fontSize.value, 6, 32);
 
         estilo.setProperty("--cor-destaque", ap.corDestaque.value.value);
         estilo.setProperty("--cor-chip", ap.corChip.value.value);
@@ -418,12 +295,12 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
         estilo.setProperty("--pad-h", (15 * escala).toFixed(1) + "px");
         estilo.setProperty(
             "--raio",
-            (Math.max(0, Math.min(ap.raio.value, 40)) * escala).toFixed(1) + "px"
+            (limitar(ap.raio.value, 0, 40) * escala).toFixed(1) + "px"
         );
         estilo.setProperty("--alinhamento", ap.alinhamento.value.value as string);
         estilo.setProperty(
             "--gap",
-            (Math.max(0, Math.min(ap.espacamento.value, 30)) * escala).toFixed(1) + "px"
+            (limitar(ap.espacamento.value, 0, 30) * escala).toFixed(1) + "px"
         );
 
         // em visual muito baixo a faixa de datas nao cabe junto com os chips.
@@ -483,7 +360,7 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
             }
             this.aplicarFiltro(this.livre);
         } else {
-            this.livre = this.calcular(periodo);
+            this.livre = calcularPeriodo(periodo, new Date());
             this.aplicarFiltro(this.livre);
         }
 
@@ -498,10 +375,8 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
             return;
         }
 
-        // datas invertidas: troca em vez de aplicar um intervalo vazio
-        this.livre = de.getTime() <= ate.getTime()
-            ? { de: de, ate: ate }
-            : { de: ate, ate: de };
+        // datas invertidas viram um intervalo valido em vez de um vazio
+        this.livre = ordenar(de, ate);
 
         this.periodo = "livre";
         this.aplicarFiltro(this.livre);

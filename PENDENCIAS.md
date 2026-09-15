@@ -1,7 +1,7 @@
 # Pendências e estado real
 
 Registro do que está resolvido, do que só *parece* resolvido e do que falta.
-Atualizado em 2026-09-15, no commit `59f8560`.
+Atualizado em 2026-09-15, no commit `92abeba` + extração de `comum/`.
 
 ---
 
@@ -9,11 +9,12 @@ Atualizado em 2026-09-15, no commit `59f8560`.
 
 | Visual | Pasta | Versão |
 |---|---|---|
-| Slider Refeição | `Slider/sliderRefeicao` | 1.4.1.0 |
-| Seletor de Data | `Slider/seletorData` | 1.3.2.0 |
-| Filtro de Hierarquia | `Slider/filtroHierarquia` | 1.2.2.0 |
+| Slider Refeição | `Slider/sliderRefeicao` | 1.4.2.0 |
+| Seletor de Data | `Slider/seletorData` | 1.3.3.0 |
+| Filtro de Hierarquia | `Slider/filtroHierarquia` | 1.2.3.0 |
 
 Nos três: `npx tsc --noEmit` limpo, `npx eslint .` limpo, `npx pbiviz package` gera o `.pbiviz`.
+Lógica pura compartilhada em `Slider/comum/`, com 24 testes passando (seção 5).
 
 ---
 
@@ -46,51 +47,59 @@ O ponto mais importante deste documento.
   errada e falha em silêncio.
 - **Modo linha do Filtro de Hierarquia** com dois níveis reais e muitas categorias:
   quebra de linha, rolagem e desempenho nunca foram vistos com volume.
-- **Nenhum teste automatizado existe.** Os sete defeitos desta sessão foram todos
-  encontrados abrindo o relatório, nenhum pelo código.
+- **A parte que fala com o Power BI continua sem teste.** A lógica pura passou a ter
+  cobertura (seção 5), mas montagem de árvore, data joins do d3 e os filtros aplicando
+  de fato só se verificam abrindo o relatório — foi assim que os sete defeitos desta
+  sessão apareceram.
 
 ---
 
-## 4. Duplicação — a causa raiz das regressões
+## 4. Duplicação — RESOLVIDO
 
-Não há código compartilhado entre os três projetos. Cada `.pbiviz` é um pacote npm próprio e
-o mesmo trecho está copiado. O resultado observado:
+Era a causa raiz das regressões: sem código compartilhado, o mesmo defeito apareceu em
+três visuais quatro vezes seguidas (`displayName` no lugar do `queryName`, `config` sem
+inicializar, `hidden` derrotado pelo `display`, escala só no padding).
 
-| Defeito | Quantos visuais tinham |
+`Slider/comum/` agora guarda a lógica pura, importada pelos três por caminho relativo:
+
+| Módulo | Conteúdo |
 |---|---|
-| `column: source.displayName` em vez do `queryName` | 3 |
-| `config` declarado sem inicializar (painel Formatar vazio) | 3 |
-| `hidden` derrotado pelo `display` das classes | 2 |
-| Percentual de tamanho escalando só o padding | 2 |
+| `numeros.ts` | `limitar` |
+| `alvo.ts` | `montarAlvo`, `emBranco` |
+| `rotulos.ts` | `cabemEm`, `encurtar` |
+| `datas.ts` | fuso, presets de período, ida e volta dos campos de data |
 
-Hoje `montarAlvo` está copiado nos três e o corpo de `aplicarEstilo` em dois.
-Uma correção exige lembrar de aplicar em três lugares — e isso já falhou uma vez
-nesta sessão, com um patch que não aplicou e foi reportado como feito.
+Verificado que nenhum dos três redefine essas funções, e que `pbiviz package` aceita
+fonte fora da raiz do projeto — era o risco registrado aqui antes.
 
-**Proposta:** extrair para um módulo comum:
-- `montarAlvo`, `emBranco`, `limitar`
-- o corpo do `aplicarEstilo` (escala única, cores, medidas)
-- a base do LESS (variáveis, `.chip`, guarda do `[hidden]`)
-
-Restrição conhecida: o empacotador do pbiviz não gosta de fontes fora da raiz do projeto.
-Precisa ser resolvido com um passo de cópia/sincronização ou testado antes de adotar.
+**O que continua duplicado:** o LESS dos dois visuais de chip e o corpo do `aplicarEstilo`.
+São acoplados ao DOM de cada visual; extrair exige decidir uma interface antes.
 
 ---
 
-## 5. Testes a escrever
+## 5. Testes — ESCRITOS
 
-Só lógica pura — nada disso precisa do Power BI para rodar, e teria pego pelo menos três
-dos sete defeitos.
+`Slider/comum/test/testes.ts`, 24 casos, todos passando. Rodar:
 
-- Matemática de data e fuso: `inicioDoDia`, `fimDoDia`, `paraIsoLocal`, `somarDias`,
-  os presets de período e o reconhecimento de intervalo de volta (`reconhecer`).
-- `montarAlvo`: dois, três, cinco segmentos, vazio, e o caso com ponto no nome da tabela.
-- Exclusão de valores em branco (`emBranco`) nos dois visuais que montam listas.
-- Intervalo de duas alças: `limitar`, `maisProximo`, e a regra de que uma alça não
-  ultrapassa a outra.
-- Truncamento de rótulo (`criarEncurtador`) em larguras apertadas.
+```
+bash Slider/comum/test/rodar.sh
+```
 
-**Por decisão do projeto, os testes ficam no `.gitignore`** — rascunho local, não versionado.
+Sem framework: compila para um diretório temporário e roda com `node:assert`, para não
+adicionar dependência só por causa de assertivas.
+
+Cobre onde estiveram os defeitos reais — fuso na data, derivação do alvo, exclusão de
+brancos, limites numéricos e corte de rótulo. Dois casos estão marcados `REGRESSAO` e
+prendem o bug do `toISOString`. Um está marcado `LIMITACAO CONHECIDA`: ponto no nome da
+tabela não é suportado pelo `montarAlvo`.
+
+Escrever os testes já pagou: pegaram uma divergência na janela de "Últimos 7 dias" — que
+era a expectativa do teste errada, não o código, mas fixou a semântica por escrito.
+
+**Ainda sem teste:** tudo que depende de DOM ou do Power BI — montagem da árvore de
+hierarquia, data joins do d3, e os três filtros de fato aplicando.
+
+Por decisão do projeto os testes ficam no `.gitignore` — rascunho local, não versionado.
 Consequência aceita: não viajam entre máquinas e não protegem quem clonar o repo.
 
 ---
