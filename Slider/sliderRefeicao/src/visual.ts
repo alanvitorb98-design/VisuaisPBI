@@ -66,6 +66,13 @@ function limitar(valor: number, minimo: number, maximo: number): number {
 export class Visual implements powerbi.extensibility.visual.IVisual {
     private host: IVisualHost;
     private servicoFormatacao: FormattingSettingsService;
+
+    /**
+     * O Power BI so sabe que o visual terminou de desenhar se ele avisar.
+     * Sem estes eventos, exportar para PDF ou PowerPoint pode capturar o
+     * visual pela metade, e o pbiviz marca o item como ausente.
+     */
+    private eventos: powerbi.extensibility.IVisualEventService;
     /**
      * Ja nasce com os padroes: o Power BI pode chamar getFormattingModel
      * antes do primeiro update (abrir o painel Formatar num visual sem campo
@@ -98,6 +105,7 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
     constructor(options: VisualConstructorOptions) {
         this.host = options.host;
         this.servicoFormatacao = new FormattingSettingsService();
+        this.eventos = options.host.eventService;
 
         this.svg = d3.select(options.element)
             .append("svg")
@@ -147,7 +155,23 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
         };
     }
 
+    /**
+     * O par de eventos fica aqui, envolvendo o desenho: `desenhar` tem varios
+     * retornos antecipados (sem campo, hierarquia, sem linhas) e emitir o
+     * renderingFinished em cada um deles seria facil de esquecer no proximo
+     * ramo que surgisse.
+     */
     public update(options: VisualUpdateOptions): void {
+        this.eventos.renderingStarted(options);
+        try {
+            this.desenhar(options);
+            this.eventos.renderingFinished(options);
+        } catch (erro) {
+            this.eventos.renderingFailed(options, String(erro));
+        }
+    }
+
+    private desenhar(options: VisualUpdateOptions): void {
         const dataView = options.dataViews && options.dataViews[0];
         this.config = this.servicoFormatacao.populateFormattingSettingsModel(
             ConfiguracoesVisual,

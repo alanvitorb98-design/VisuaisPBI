@@ -41,6 +41,21 @@
   * { box-sizing: border-box; }
 }
 
+/*
+  O atributo `hidden` esconde via regra do navegador ([hidden]{display:none}),
+  de especificidade minima: qualquer `display` declarado aqui a derruba, e sem
+  isso os elementos escondidos por codigo continuavam na tela - os dois modos
+  do filtro apareciam juntos, com os botoes duplicados.
+
+  A guarda vence pela especificidade (0,2,0 contra os 0,1,0 das classes) em
+  vez de por !important, que resolveria o caso de hoje mas calaria qualquer
+  conflito futuro em vez de deixa-lo aparecer.
+*/
+.seletor-data[hidden],
+.seletor-data [hidden] {
+  display: none;
+}
+
 .barra {
   display: flex;
   flex-wrap: wrap;
