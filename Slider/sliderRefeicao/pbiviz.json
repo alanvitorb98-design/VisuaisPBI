@@ -1,0 +1,26 @@
+{
+    "visual": {
+        "name": "sliderRefeicao",
+        "displayName": "sliderRefeicao",
+        "guid": "sliderRefeicaoA98867E6947A4422950D6098F442B77D",
+        "visualClassName": "Visual",
+        "version": "1.0.0.0",
+        "description": "",
+        "supportUrl": "",
+        "gitHubUrl": ""
+    },
+    "apiVersion": "5.11.1",
+    "author": {
+        "name": "Alan",
+        "email": "alan.bento@cvale.com.br"
+    },
+    "assets": {
+        "icon": "assets/icon.png"
+    },
+    "externalJS": null,
+    "style": "style/visual.less",
+    "capabilities": "capabilities.json",
+    "dependencies": null,
+    "stringResources": [],
+    "version": "1.0.0.0"
+}

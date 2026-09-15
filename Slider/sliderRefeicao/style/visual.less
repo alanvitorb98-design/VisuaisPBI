@@ -1,0 +1,78 @@
+/* ========================================================
+   Slider Refeição — animações de hover
+   Tudo pausado por padrão; roda só com o mouse na alça.
+   ======================================================== */
+
+@keyframes girar {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+@keyframes pulsar {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.14); }
+}
+
+@keyframes respirar {
+  0%, 100% { transform: scale(1);    opacity: 1; }
+  50%      { transform: scale(1.18); opacity: 0.55; }
+}
+
+@keyframes balancar {
+  0%, 100% { transform: rotate(-9deg); }
+  50%      { transform: rotate(9deg); }
+}
+
+.alca {
+  cursor: grab;
+
+  &:active { cursor: grabbing; }
+
+  .icone-grupo {
+    #raios, #nucleo, #aura, #lua {
+      /* obrigatório em SVG: sem isso o eixo vira o canto do viewport */
+      transform-box: fill-box;
+      transform-origin: center;
+      animation-play-state: paused;
+    }
+
+    #raios  { animation: girar    5s   linear      infinite; }
+    #nucleo { animation: pulsar   2.2s ease-in-out infinite; }
+    #aura   { animation: respirar 2.8s ease-in-out infinite; }
+    #lua    { animation: balancar 2.4s ease-in-out infinite; }
+  }
+
+  /* halo do círculo da alça */
+  .halo {
+    opacity: 0;
+    transition: opacity .25s ease;
+  }
+
+  .corpo {
+    transition: fill .18s ease;
+  }
+
+  &:hover {
+    .icone-grupo * { animation-play-state: running; }
+    .halo { opacity: .22; }
+  }
+}
+
+/* trilho e marcadores */
+.trilho {
+  stroke: #E1E1E1;
+  stroke-width: 6;
+  stroke-linecap: round;
+}
+
+.marca {
+  fill: #BDBDBD;
+  transition: fill .2s ease, r .2s ease;
+}
+
+.rotulo {
+  fill: #605E5C;
+  font-family: "Segoe UI", wf_standard-font, helvetica, arial, sans-serif;
+  user-select: none;
+  pointer-events: none;
+}

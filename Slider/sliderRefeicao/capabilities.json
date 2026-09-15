@@ -1,0 +1,23 @@
+{
+  "dataRoles": [
+    { "displayName": "Refeição", "name": "categoria", "kind": "Grouping" },
+    { "displayName": "Ordem", "name": "ordem", "kind": "Measure" }
+  ],
+  "dataViewMappings": [{
+    "categorical": {
+      "categories": { "for": { "in": "categoria" }, "dataReductionAlgorithm": { "top": { "count": 10 } } },
+      "values": { "select": [{ "bind": { "to": "ordem" } }] }
+    }
+  }],
+  "objects": {
+    "slider": {
+      "properties": {
+        "corTrilho": { "type": { "fill": { "solid": { "color": true } } } },
+        "corAlca":   { "type": { "fill": { "solid": { "color": true } } } },
+        "raioAlca":  { "type": { "numeric": true } }
+      }
+    }
+  },
+  "privileges": [],
+  "supportsHighlight": false
+}
