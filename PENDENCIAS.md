@@ -1,7 +1,10 @@
 # Pendências e estado real
 
 Registro do que está resolvido, do que só *parece* resolvido e do que falta.
-Atualizado em 2026-09-15, no commit `92abeba` + extração de `comum/`.
+Atualizado em 2026-09-15, no commit `24f6cad`.
+
+Regra deste arquivo: "verificado" significa **executado e conferido**, não "compila".
+Compilar nunca provou nada aqui — todos os defeitos desta sessão passavam no `tsc`.
 
 ---
 
@@ -57,6 +60,25 @@ O ponto mais importante deste documento.
   cobertura (seção 5), mas montagem de árvore, data joins do d3 e os filtros aplicando
   de fato só se verificam abrindo o relatório — foi assim que os sete defeitos desta
   sessão apareceram.
+
+### Roteiro para fechar esta seção
+
+O que precisa ser feito no Power BI, em ordem de valor. Marcar aqui conforme sair.
+
+- [ ] **Seletor de Data — "Período inicial"**: mudar de `Tudo` para `Últimos 7 dias`,
+      salvar, fechar e reabrir. O chip tem que abrir aceso **e** os dados filtrados.
+      Era o defeito nº 2; com o padrão em `Tudo` os dois comportamentos coincidiam
+      por acidente, então testar com `Tudo` não prova nada.
+- [ ] **Slider — `BasicFilter`**: arrastar as alças e confirmar que outro visual da
+      página reage. Alvo errado o Power BI descarta calado: se não filtrar, o problema
+      é o `queryName`, não o arrasto.
+- [ ] **Hierarquia — `TupleFilter`**: marcar folhas de dois pais diferentes e conferir
+      que o resultado é a união dos pares, não o produto cartesiano.
+- [ ] **Hierarquia — intervalo cheio**: marcar tudo deve **remover** o filtro do
+      relatório, não aplicar um `In` com todos os valores.
+- [ ] **Slider — coluna toda em branco**: se houver esse caso no modelo, confirmar que
+      aparece o aviso em vez do visual sumir.
+- [ ] **Modo linha da Hierarquia com volume real** — quebra de linha, rolagem, desempenho.
 
 ---
 
@@ -123,6 +145,10 @@ Consequência aceita: não viajam entre máquinas e não protegem quem clonar o 
 ## 6. Itens recomendados pelo `pbiviz` ainda ausentes
 
 São recomendações, não obrigatórios. Viram bloqueio só para publicar no AppSource.
+O `pbiviz package` lista 9 nos três — os 4 abaixo mais os 5 descartados. `Rendering Events`
+saiu da lista quando foi implementado, o que confirma que a contagem acompanha o código.
+
+**Nada começado ainda.** É o próximo passo natural.
 
 **Vale fazer**
 - **High Contrast** — cores fixas no código ignoram o modo de alto contraste do Windows;
@@ -150,3 +176,35 @@ São recomendações, não obrigatórios. Viram bloqueio só para publicar no Ap
 - `dataReductionAlgorithm` limita a 30 categorias no Slider e 3000 pares na Hierarquia.
   Acima disso a seleção é silenciosamente truncada.
 - `pbiviz start` precisa do PowerShell 7 (`pwsh`) para gerar o certificado do servidor dev.
+  O `pbiviz package` funciona sem ele: o `error Create certificate error` que aparece no
+  log **não** reprova o empacotamento — o código de saída continua 0.
+
+---
+
+## 8. Armadilhas já pagas
+
+Cada uma destas custou pelo menos um ciclo. Todas passam no `tsc` e falham em silêncio.
+
+- **Alvo do filtro vem do `queryName`, nunca do `displayName`.** O `displayName` é o rótulo
+  renomeável; apontar para ele gera um filtro para uma coluna inexistente, que o Power BI
+  **descarta sem erro nenhum**. Sintoma: nada filtra e nada aparece no console.
+- **`toISOString` nos limites do filtro.** Em UTC-3 vira `03:00Z` e exclui as linhas
+  gravadas à meia-noite. Usar `paraIsoLocal` de `comum/datas.ts`. Dois testes prendem isso.
+- **`config` sem inicializar.** O Power BI pode chamar `getFormattingModel` antes do
+  primeiro `update`; `buildFormattingModel(undefined)` lança e o painel Formatar fica
+  **sem nenhum card**. Declarar sempre `= new ConfiguracoesVisual()`.
+- **`[hidden]` é derrotado por qualquer `display` do autor** — a regra do navegador tem
+  especificidade mínima. Daí a guarda `0,2,0` no LESS dos dois visuais de chip. Sem ela os
+  dois modos da hierarquia apareciam juntos, com botões duplicados.
+- **Em SVG, folha de estilo vence atributo de apresentação.** Se o LESS declara
+  `font-size` em `.aviso`, `.attr("font-size", …)` não muda nada — precisa ser
+  `.style(…)`. Foi o que travava o aviso do Slider nos 12px fixos.
+- **`applyJsonFilter` dispara um novo `update`.** Qualquer filtro aplicado automaticamente
+  durante o desenho precisa de guarda contra laço — as duas que existem hoje são o
+  `restaurado`/`chaveInicio` e a condição `periodo !== "tudo"` no `seletorData`.
+- **Validador também erra.** O `auditar.py` acusou 56 defeitos inexistentes por não seguir
+  alias local, e depois 5 por não conhecer `topLevelSlice` e `FontControl`. Antes de
+  reportar número de um script novo, conferir os primeiros achados um a um na mão.
+- **Patch pode falhar sem avisar.** Já aconteceu de uma edição não gravar e o resultado
+  ser dado como feito; só apareceu depois porque o `tsc=0` vinha do código antigo.
+  Conferir que cada alteração está mesmo no arquivo antes de dizer que está pronta.
