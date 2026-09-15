@@ -43,6 +43,26 @@ function paraCampo(data: Date): string {
     return data.getFullYear() + "-" + mes + "-" + dia;
 }
 
+/**
+ * "2026-09-15T00:00:00.000", montado a partir dos componentes locais e SEM o
+ * sufixo Z.
+ *
+ * toISOString devolveria o mesmo instante em UTC: num fuso UTC-3 o inicio do
+ * dia local vira 03:00Z. As datas do modelo semantico nao tem fuso, entao a
+ * condicao ">= 03:00" descarta as linhas gravadas em 00:00 e o dia inteiro
+ * fica de fora do filtro.
+ */
+function paraIsoLocal(data: Date): string {
+    const dois = (n: number) => String(n).padStart(2, "0");
+    return data.getFullYear()
+        + "-" + dois(data.getMonth() + 1)
+        + "-" + dois(data.getDate())
+        + "T" + dois(data.getHours())
+        + ":" + dois(data.getMinutes())
+        + ":" + dois(data.getSeconds())
+        + "." + String(data.getMilliseconds()).padStart(3, "0");
+}
+
 function doCampo(texto: string): Date {
     const partes = texto.split("-").map(Number);
     if (partes.length !== 3 || partes.some(isNaN)) {
@@ -135,6 +155,20 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
             return;
         }
 
+        const tipo = categoria.source.type;
+
+        if (tipo && !tipo.dateTime) {
+            // Comparar >= e <= contra uma coluna de texto vira comparacao
+            // lexicografica: "01/12/2026" < "02/01/2020". O filtro e aceito
+            // e simplesmente nao seleciona o que o usuario espera.
+            this.mostrarAviso(
+                "A coluna precisa ser do tipo Data. Esta e do tipo "
+                + this.nomeDoTipo(tipo) + ", entao a comparacao de intervalo "
+                + "nao funciona. Converta a coluna para Data no Power Query."
+            );
+            return;
+        }
+
         this.alvoFiltro = this.montarAlvo(categoria.source);
 
         if (!this.alvoFiltro) {
@@ -159,6 +193,20 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
 
     public getFormattingModel(): powerbi.visuals.FormattingModel {
         return this.servicoFormatacao.buildFormattingModel(this.config);
+    }
+
+    /** Nome legivel do tipo da coluna, para o aviso dizer o que veio. */
+    private nomeDoTipo(tipo: powerbi.ValueTypeDescriptor): string {
+        if (tipo.text) {
+            return "Texto";
+        }
+        if (tipo.integer || tipo.numeric) {
+            return "Numero";
+        }
+        if (tipo.bool) {
+            return "Verdadeiro/Falso";
+        }
+        return "nao reconhecido";
     }
 
     private mostrarAviso(texto: string): void {
@@ -270,8 +318,8 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
         const filtro = new AdvancedFilter(
             this.alvoFiltro,
             "And",
-            { operator: "GreaterThanOrEqual", value: inicioDoDia(intervalo.de).toISOString() },
-            { operator: "LessThanOrEqual", value: fimDoDia(intervalo.ate).toISOString() }
+            { operator: "GreaterThanOrEqual", value: paraIsoLocal(inicioDoDia(intervalo.de)) },
+            { operator: "LessThanOrEqual", value: paraIsoLocal(fimDoDia(intervalo.ate)) }
         );
 
         this.host.applyJsonFilter(filtro, OBJETO_FILTRO, PROP_FILTRO, powerbi.FilterAction.merge);
