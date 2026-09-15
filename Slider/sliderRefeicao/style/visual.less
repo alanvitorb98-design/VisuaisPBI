@@ -1,7 +1,11 @@
 /* ========================================================
-   Slider Refeição — animações de hover
-   Tudo pausado por padrão; roda só com o mouse na alça.
+   Slider Refeicao
+   Cores e tamanhos vem do painel Formatar (settings.ts).
+   Aqui fica so o que e estado visual: hover, transicao, animacao.
    ======================================================== */
+
+@dur-curta: .18s;
+@dur-media: .25s;
 
 @keyframes girar {
   from { transform: rotate(0deg); }
@@ -23,14 +27,82 @@
   50%      { transform: rotate(9deg); }
 }
 
+svg.slider-refeicao {
+  display: block;
+  overflow: visible;
+}
+
+.trilho {
+  stroke-linecap: round;
+}
+
+/* percurso ja percorrido, do inicio ate a alca */
+.trilho-ativo {
+  stroke-linecap: round;
+  opacity: .9;
+}
+
+.marca {
+  cursor: pointer;
+  transition: fill @dur-media ease, r @dur-curta ease;
+
+  &:hover {
+    r: 6;
+  }
+}
+
+.rotulo {
+  user-select: none;
+  cursor: pointer;
+  transition: opacity @dur-media ease, font-weight @dur-curta ease;
+  opacity: .72;
+
+  &.selecionado {
+    opacity: 1;
+    font-weight: 600 !important;
+  }
+
+  &:hover {
+    opacity: 1;
+  }
+}
+
+.aviso {
+  fill: #605E5C;
+  font-family: "Segoe UI", wf_standard-font, helvetica, arial, sans-serif;
+  font-size: 12px;
+}
+
 .alca {
   cursor: grab;
 
-  &:active { cursor: grabbing; }
+  &:active,
+  &.arrastando {
+    cursor: grabbing;
+  }
+
+  /* disco branco atras do icone, com sombra */
+  .corpo {
+    fill: #FFFFFF;
+    filter: url(#sombraAlca);
+    transition: fill @dur-curta ease;
+  }
+
+  /* aro colorido na borda do disco */
+  .anel {
+    fill: none;
+    transition: stroke @dur-curta ease;
+  }
+
+  /* brilho difuso, so aparece no hover */
+  .halo {
+    opacity: 0;
+    transition: opacity @dur-media ease;
+  }
 
   .icone-grupo {
     #raios, #nucleo, #aura, #lua {
-      /* obrigatório em SVG: sem isso o eixo vira o canto do viewport */
+      /* obrigatorio em SVG: sem isso o eixo vira o canto do viewport */
       transform-box: fill-box;
       transform-origin: center;
       animation-play-state: paused;
@@ -42,37 +114,24 @@
     #lua    { animation: balancar 2.4s ease-in-out infinite; }
   }
 
-  /* halo do círculo da alça */
-  .halo {
-    opacity: 0;
-    transition: opacity .25s ease;
-  }
-
-  .corpo {
-    transition: fill .18s ease;
-  }
-
-  &:hover {
+  &:hover,
+  &.arrastando {
     .icone-grupo * { animation-play-state: running; }
     .halo { opacity: .22; }
   }
 }
 
-/* trilho e marcadores */
-.trilho {
-  stroke: #E1E1E1;
-  stroke-width: 6;
-  stroke-linecap: round;
+/* toggle "Animar ao passar o mouse" desligado no painel Formatar */
+svg.sem-animacao .alca {
+  &:hover,
+  &.arrastando {
+    .icone-grupo * { animation-play-state: paused; }
+  }
 }
 
-.marca {
-  fill: #BDBDBD;
-  transition: fill .2s ease, r .2s ease;
-}
-
-.rotulo {
-  fill: #605E5C;
-  font-family: "Segoe UI", wf_standard-font, helvetica, arial, sans-serif;
-  user-select: none;
-  pointer-events: none;
+/* respeita quem pediu menos movimento no sistema operacional */
+@media (prefers-reduced-motion: reduce) {
+  .alca .icone-grupo * {
+    animation: none !important;
+  }
 }

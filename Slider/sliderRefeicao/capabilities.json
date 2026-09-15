@@ -3,18 +3,89 @@
     { "displayName": "Refeição", "name": "categoria", "kind": "Grouping" },
     { "displayName": "Ordem", "name": "ordem", "kind": "Measure" }
   ],
-  "dataViewMappings": [{
-    "categorical": {
-      "categories": { "for": { "in": "categoria" }, "dataReductionAlgorithm": { "top": { "count": 10 } } },
-      "values": { "select": [{ "bind": { "to": "ordem" } }] }
+  "dataViewMappings": [
+    {
+      "categorical": {
+        "categories": {
+          "for": { "in": "categoria" },
+          "dataReductionAlgorithm": { "top": { "count": 30 } }
+        },
+        "values": { "select": [{ "bind": { "to": "ordem" } }] }
+      }
     }
-  }],
+  ],
   "objects": {
     "slider": {
+      "displayName": "Trilho e alça",
       "properties": {
-        "corTrilho": { "type": { "fill": { "solid": { "color": true } } } },
-        "corAlca":   { "type": { "fill": { "solid": { "color": true } } } },
-        "raioAlca":  { "type": { "numeric": true } }
+        "corTrilho": {
+          "displayName": "Cor do trilho",
+          "type": { "fill": { "solid": { "color": true } } }
+        },
+        "corDestaque": {
+          "displayName": "Cor do percurso ativo",
+          "type": { "fill": { "solid": { "color": true } } }
+        },
+        "corMarcador": {
+          "displayName": "Cor dos marcadores",
+          "type": { "fill": { "solid": { "color": true } } }
+        },
+        "espessuraTrilho": {
+          "displayName": "Espessura do trilho",
+          "type": { "numeric": true }
+        },
+        "raioAlca": {
+          "displayName": "Raio da alça",
+          "type": { "numeric": true }
+        },
+        "corAlca": {
+          "displayName": "Cor da alça",
+          "type": { "fill": { "solid": { "color": true } } }
+        },
+        "usarCorDaCategoria": {
+          "displayName": "Usar cor da categoria",
+          "type": { "bool": true }
+        },
+        "mostrarMarcadores": {
+          "displayName": "Mostrar marcadores",
+          "type": { "bool": true }
+        }
+      }
+    },
+    "rotulos": {
+      "displayName": "Rótulos",
+      "properties": {
+        "mostrar": {
+          "displayName": "Mostrar",
+          "type": { "bool": true }
+        },
+        "fontFamily": {
+          "displayName": "Fonte",
+          "type": { "formatting": { "fontFamily": true } }
+        },
+        "fontSize": {
+          "displayName": "Tamanho",
+          "type": { "formatting": { "fontSize": true } }
+        },
+        "bold": { "displayName": "Negrito", "type": { "bool": true } },
+        "italic": { "displayName": "Itálico", "type": { "bool": true } },
+        "underline": { "displayName": "Sublinhado", "type": { "bool": true } },
+        "cor": {
+          "displayName": "Cor",
+          "type": { "fill": { "solid": { "color": true } } }
+        },
+        "destacarSelecionado": {
+          "displayName": "Destacar o selecionado",
+          "type": { "bool": true }
+        }
+      }
+    },
+    "icone": {
+      "displayName": "Ícone",
+      "properties": {
+        "mostrar": { "displayName": "Mostrar", "type": { "bool": true } },
+        "escala": { "displayName": "Escala", "type": { "numeric": true } },
+        "animar": { "displayName": "Animar ao passar o mouse", "type": { "bool": true } }
       }
     }
   },
