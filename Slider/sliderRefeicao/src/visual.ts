@@ -160,6 +160,12 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
 
         this.alvoFiltro = this.montarAlvo(categoria.source);
 
+        if (!this.alvoFiltro) {
+            this.mostrarVazio(true, "Este campo veio como hierarquia. Clique na seta dele no "
+                + "painel de campos e escolha a coluna em vez da hierarquia.");
+            return;
+        }
+
         const valores = dataView.categorical.values;
         const ordens = (valores && valores[0] && valores[0].values) || [];
 
@@ -199,16 +205,24 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
     // ------------------------------------------------------------------
 
     /**
-     * Alvo do filtro no modelo semantico. O queryName vem como
-     * "Tabela.Coluna", e o BasicFilter precisa das duas partes separadas.
+     * Alvo do filtro no modelo semantico.
+     *
+     * O nome da coluna sai do queryName ("Tabela.Coluna"), nunca do
+     * displayName: displayName e o rotulo exibido, que o usuario pode
+     * renomear no painel de campos. Renomeado, o filtro apontaria para uma
+     * coluna inexistente e o Power BI o descartaria sem avisar.
+     *
+     * queryName com mais de um ponto e hierarquia; devolve nulo para o
+     * visual explicar o que fazer em vez de falhar calado.
      */
     private montarAlvo(fonte: powerbi.DataViewMetadataColumn): IFilterColumnTarget {
-        const consulta = fonte.queryName || "";
-        const ponto = consulta.indexOf(".");
-        return {
-            table: ponto > 0 ? consulta.substring(0, ponto) : consulta,
-            column: fonte.displayName
-        };
+        const partes = (fonte.queryName || "").split(".");
+
+        if (partes.length !== 2 || !partes[0] || !partes[1]) {
+            return null;
+        }
+
+        return { table: partes[0], column: partes[1] };
     }
 
     /**
@@ -296,7 +310,7 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
         const fonte = limitar(cfgRotulos.fonte.fontSize.value, 6, 40);
         const mostrarRotulos = cfgRotulos.mostrar.value;
 
-        const raio = limitar(cfgSlider.raioAlca.value, 6, Math.max(6, altura * 0.30));
+        const raio = limitar(cfgSlider.raioAlca.value, 6, Math.max(6, altura * 0.42));
 
         const margem = Math.max(raio + 6, Math.min(largura * 0.14, 72));
         const esq = Math.min(margem, largura / 2);
@@ -348,11 +362,11 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
     // desenho
     // ------------------------------------------------------------------
 
-    private mostrarVazio(vazio: boolean): void {
+    private mostrarVazio(vazio: boolean, texto?: string): void {
         this.svg.classed("vazio", vazio);
         this.aviso
             .style("display", vazio ? null : "none")
-            .text("Arraste o campo Refeicao para o visual");
+            .text(texto || "Arraste o campo Refeicao para o visual");
     }
 
     private desenharEstrutura(): void {
@@ -419,8 +433,12 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
             .transition().duration(DUR)
             .attr("x", d => this.posX(d.pos));
 
+        const corDisco = cfgSlider.discoTransparente.value
+            ? "transparent"
+            : cfgSlider.corDisco.value.value;
+
         [this.alcaInicio, this.alcaFim].forEach(alca => {
-            alca.corpo.attr("r", lay.raio);
+            alca.corpo.attr("r", lay.raio).attr("fill", corDisco);
             alca.anel.attr("r", lay.raio).attr("stroke-width", Math.max(2, lay.espessura * 0.45));
             alca.halo.attr("r", lay.raio * 1.5);
             alca.icone.style("display", cfgIcone.mostrar.value ? null : "none");

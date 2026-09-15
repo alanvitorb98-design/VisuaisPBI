@@ -79,6 +79,24 @@ class CartaoAparencia extends FormattingSettingsCard {
         value: 16
     });
 
+    tamanho = new formattingSettings.NumUpDown({
+        name: "tamanho",
+        displayName: "Tamanho do botão (%)",
+        value: 100
+    });
+
+    fundoTransparente = new formattingSettings.ToggleSwitch({
+        name: "fundoTransparente",
+        displayName: "Fundo transparente",
+        value: true
+    });
+
+    corFundo = new formattingSettings.ColorPicker({
+        name: "corFundo",
+        displayName: "Cor do fundo",
+        value: { value: "#FFFFFF" }
+    });
+
     fonte = new formattingSettings.FontControl({
         name: "fonte",
         displayName: "Fonte",
@@ -104,7 +122,9 @@ class CartaoAparencia extends FormattingSettingsCard {
     name: string = "aparencia";
     displayName: string = "Aparência";
     slices: Array<FormattingSettingsSlice> = [
-        this.corDestaque, this.corChip, this.corTexto, this.raio, this.fonte
+        this.corDestaque, this.corChip, this.corTexto,
+        this.fundoTransparente, this.corFundo,
+        this.raio, this.tamanho, this.fonte
     ];
 }
 

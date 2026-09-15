@@ -18,6 +18,9 @@
   --peso: 400;
   --italico: normal;
   --sublinhado: none;
+  --pad-v: 6px;
+  --pad-h: 13px;
+  --cor-fundo: transparent;
 
   box-sizing: border-box;
   width: 100%;
@@ -28,6 +31,7 @@
   gap: 7px;
   padding: 4px 6px;
   overflow: hidden;
+  background: var(--cor-fundo);
 
   font-family: var(--fonte);
   font-size: var(--tamanho);
@@ -48,7 +52,7 @@
   appearance: none;
   border: 0;
   cursor: pointer;
-  padding: 6px 13px;
+  padding: var(--pad-v) var(--pad-h);
   border-radius: var(--raio);
   background: var(--cor-chip);
   color: var(--cor-texto);

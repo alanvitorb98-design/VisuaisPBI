@@ -56,6 +56,18 @@ class CartaoSlider extends FormattingSettingsCard {
         value: true
     });
 
+    discoTransparente = new formattingSettings.ToggleSwitch({
+        name: "discoTransparente",
+        displayName: "Disco da alça transparente",
+        value: false
+    });
+
+    corDisco = new formattingSettings.ColorPicker({
+        name: "corDisco",
+        displayName: "Cor do disco da alça",
+        value: { value: "#FFFFFF" }
+    });
+
     mostrarLimpar = new formattingSettings.ToggleSwitch({
         name: "mostrarLimpar",
         displayName: "Mostrar botão limpar",
@@ -73,6 +85,8 @@ class CartaoSlider extends FormattingSettingsCard {
         this.raioAlca,
         this.usarCorDaCategoria,
         this.corAlca,
+        this.discoTransparente,
+        this.corDisco,
         this.mostrarLimpar
     ];
 }

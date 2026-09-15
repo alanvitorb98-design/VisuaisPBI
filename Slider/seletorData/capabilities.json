@@ -59,6 +59,12 @@
           "type": { "fill": { "solid": { "color": true } } }
         },
         "raio": { "displayName": "Arredondamento", "type": { "numeric": true } },
+        "tamanho": { "displayName": "Tamanho do chip (%)", "type": { "numeric": true } },
+        "fundoTransparente": { "displayName": "Fundo transparente", "type": { "bool": true } },
+        "corFundo": {
+          "displayName": "Cor do fundo",
+          "type": { "fill": { "solid": { "color": true } } }
+        },
         "alinhamento": {
           "displayName": "Alinhamento",
           "type": {

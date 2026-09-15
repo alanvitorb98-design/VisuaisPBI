@@ -131,15 +131,22 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
             && dataView.categorical.categories[0];
 
         if (!categoria) {
-            this.aviso.hidden = false;
-            this.barra.hidden = true;
-            this.faixaLivre.hidden = true;
+            this.mostrarAviso("Arraste o campo Data para o visual");
+            return;
+        }
+
+        this.alvoFiltro = this.montarAlvo(categoria.source);
+
+        if (!this.alvoFiltro) {
+            this.mostrarAviso(
+                "Este campo veio como hierarquia de data. Clique na seta dele no "
+                + "painel de campos e escolha a coluna de data em vez da hierarquia."
+            );
             return;
         }
 
         this.aviso.hidden = true;
         this.barra.hidden = false;
-        this.alvoFiltro = this.montarAlvo(categoria.source);
 
         if (!this.restaurado) {
             this.restaurado = true;
@@ -154,17 +161,37 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
         return this.servicoFormatacao.buildFormattingModel(this.config);
     }
 
+    private mostrarAviso(texto: string): void {
+        this.aviso.textContent = texto;
+        this.aviso.hidden = false;
+        this.barra.hidden = true;
+        this.faixaLivre.hidden = true;
+    }
+
     // ------------------------------------------------------------------
     // filtro
     // ------------------------------------------------------------------
 
+    /**
+     * Alvo do filtro no modelo semantico.
+     *
+     * O nome da coluna sai do queryName ("Tabela.Coluna"), nunca do
+     * displayName: displayName e o rotulo exibido, que o usuario pode
+     * renomear no painel de campos. Renomeado, o filtro apontaria para uma
+     * coluna inexistente e o Power BI o descartaria sem avisar.
+     *
+     * queryName com mais de um ponto e hierarquia de data (Ano/Trimestre/
+     * Mes/Dia). Nao da para filtrar intervalo sobre ela, entao devolve nulo
+     * e o visual explica o que fazer.
+     */
     private montarAlvo(fonte: powerbi.DataViewMetadataColumn): IFilterColumnTarget {
-        const consulta = fonte.queryName || "";
-        const ponto = consulta.indexOf(".");
-        return {
-            table: ponto > 0 ? consulta.substring(0, ponto) : consulta,
-            column: fonte.displayName
-        };
+        const partes = (fonte.queryName || "").split(".");
+
+        if (partes.length !== 2 || !partes[0] || !partes[1]) {
+            return null;
+        }
+
+        return { table: partes[0], column: partes[1] };
     }
 
     /**
@@ -255,6 +282,16 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
         estilo.setProperty("--cor-texto", ap.corTexto.value.value);
         estilo.setProperty("--raio", Math.max(0, Math.min(ap.raio.value, 40)) + "px");
         estilo.setProperty("--alinhamento", ap.alinhamento.value.value as string);
+
+        // o padding cresce junto com a fonte, senao so o texto aumentaria
+        const escala = Math.max(50, Math.min(ap.tamanho.value, 250)) / 100;
+        estilo.setProperty("--pad-v", (6 * escala).toFixed(1) + "px");
+        estilo.setProperty("--pad-h", (13 * escala).toFixed(1) + "px");
+
+        estilo.setProperty(
+            "--cor-fundo",
+            ap.fundoTransparente.value ? "transparent" : ap.corFundo.value.value
+        );
         estilo.setProperty("--fonte", ap.fonte.fontFamily.value);
         estilo.setProperty("--tamanho", Math.max(6, Math.min(ap.fonte.fontSize.value, 32)) + "px");
         estilo.setProperty("--peso", ap.fonte.bold.value ? "600" : "400");

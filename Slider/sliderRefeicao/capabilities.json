@@ -1,16 +1,38 @@
 {
   "dataRoles": [
-    { "displayName": "Refeição", "name": "categoria", "kind": "Grouping" },
-    { "displayName": "Ordem", "name": "ordem", "kind": "Measure" }
+    {
+      "displayName": "Refeição",
+      "name": "categoria",
+      "kind": "Grouping"
+    },
+    {
+      "displayName": "Ordem",
+      "name": "ordem",
+      "kind": "Measure"
+    }
   ],
   "dataViewMappings": [
     {
       "categorical": {
         "categories": {
-          "for": { "in": "categoria" },
-          "dataReductionAlgorithm": { "top": { "count": 30 } }
+          "for": {
+            "in": "categoria"
+          },
+          "dataReductionAlgorithm": {
+            "top": {
+              "count": 30
+            }
+          }
         },
-        "values": { "select": [{ "bind": { "to": "ordem" } }] }
+        "values": {
+          "select": [
+            {
+              "bind": {
+                "to": "ordem"
+              }
+            }
+          ]
+        }
       }
     }
   ],
@@ -18,7 +40,9 @@
     "geral": {
       "properties": {
         "filtro": {
-          "type": { "filter": {} }
+          "type": {
+            "filter": {}
+          }
         }
       }
     },
@@ -27,39 +51,89 @@
       "properties": {
         "corTrilho": {
           "displayName": "Cor do trilho",
-          "type": { "fill": { "solid": { "color": true } } }
+          "type": {
+            "fill": {
+              "solid": {
+                "color": true
+              }
+            }
+          }
         },
         "corDestaque": {
           "displayName": "Cor do percurso ativo",
-          "type": { "fill": { "solid": { "color": true } } }
+          "type": {
+            "fill": {
+              "solid": {
+                "color": true
+              }
+            }
+          }
         },
         "corMarcador": {
           "displayName": "Cor dos marcadores",
-          "type": { "fill": { "solid": { "color": true } } }
+          "type": {
+            "fill": {
+              "solid": {
+                "color": true
+              }
+            }
+          }
         },
         "espessuraTrilho": {
           "displayName": "Espessura do trilho",
-          "type": { "numeric": true }
+          "type": {
+            "numeric": true
+          }
         },
         "raioAlca": {
           "displayName": "Raio da alça",
-          "type": { "numeric": true }
+          "type": {
+            "numeric": true
+          }
         },
         "corAlca": {
           "displayName": "Cor da alça",
-          "type": { "fill": { "solid": { "color": true } } }
+          "type": {
+            "fill": {
+              "solid": {
+                "color": true
+              }
+            }
+          }
         },
         "usarCorDaCategoria": {
           "displayName": "Usar cor da categoria",
-          "type": { "bool": true }
+          "type": {
+            "bool": true
+          }
         },
         "mostrarMarcadores": {
           "displayName": "Mostrar marcadores",
-          "type": { "bool": true }
+          "type": {
+            "bool": true
+          }
         },
         "mostrarLimpar": {
           "displayName": "Mostrar botão limpar",
-          "type": { "bool": true }
+          "type": {
+            "bool": true
+          }
+        },
+        "discoTransparente": {
+          "displayName": "Disco da alça transparente",
+          "type": {
+            "bool": true
+          }
+        },
+        "corDisco": {
+          "displayName": "Cor do disco da alça",
+          "type": {
+            "fill": {
+              "solid": {
+                "color": true
+              }
+            }
+          }
         }
       }
     },
@@ -68,35 +142,83 @@
       "properties": {
         "mostrar": {
           "displayName": "Mostrar",
-          "type": { "bool": true }
+          "type": {
+            "bool": true
+          }
         },
         "fontFamily": {
           "displayName": "Fonte",
-          "type": { "formatting": { "fontFamily": true } }
+          "type": {
+            "formatting": {
+              "fontFamily": true
+            }
+          }
         },
         "fontSize": {
           "displayName": "Tamanho",
-          "type": { "formatting": { "fontSize": true } }
+          "type": {
+            "formatting": {
+              "fontSize": true
+            }
+          }
         },
-        "bold": { "displayName": "Negrito", "type": { "bool": true } },
-        "italic": { "displayName": "Itálico", "type": { "bool": true } },
-        "underline": { "displayName": "Sublinhado", "type": { "bool": true } },
+        "bold": {
+          "displayName": "Negrito",
+          "type": {
+            "bool": true
+          }
+        },
+        "italic": {
+          "displayName": "Itálico",
+          "type": {
+            "bool": true
+          }
+        },
+        "underline": {
+          "displayName": "Sublinhado",
+          "type": {
+            "bool": true
+          }
+        },
         "cor": {
           "displayName": "Cor",
-          "type": { "fill": { "solid": { "color": true } } }
+          "type": {
+            "fill": {
+              "solid": {
+                "color": true
+              }
+            }
+          }
         },
         "destacarSelecionado": {
           "displayName": "Destacar o selecionado",
-          "type": { "bool": true }
+          "type": {
+            "bool": true
+          }
         }
       }
     },
     "icone": {
       "displayName": "Ícone",
       "properties": {
-        "mostrar": { "displayName": "Mostrar", "type": { "bool": true } },
-        "escala": { "displayName": "Escala", "type": { "numeric": true } },
-        "animar": { "displayName": "Animar ao passar o mouse", "type": { "bool": true } }
+        "mostrar": {
+          "displayName": "Mostrar",
+          "type": {
+            "bool": true
+          }
+        },
+        "escala": {
+          "displayName": "Escala",
+          "type": {
+            "numeric": true
+          }
+        },
+        "animar": {
+          "displayName": "Animar ao passar o mouse",
+          "type": {
+            "bool": true
+          }
+        }
       }
     }
   },
