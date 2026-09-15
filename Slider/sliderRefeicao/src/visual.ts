@@ -174,6 +174,11 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
             dataView
         );
 
+        // antes dos retornos: o aviso e a unica coisa na tela nos estados de
+        // erro, e ele ficava preso na fonte fixa do CSS - mexer nos ajustes
+        // parecia nao surtir efeito nenhum enquanto o visual estivesse assim
+        this.estilizarAviso();
+
         const categoria = dataView
             && dataView.categorical
             && dataView.categorical.categories
@@ -228,6 +233,15 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
             ponto.pos = i;
             ponto.cor = PALETA[i % PALETA.length];
         });
+
+        // A coluna tem linhas, mas todas em branco: `naoBrancos` filtrou tudo.
+        // Sem esta saida, restaurarIntervalo leria pontos[0] de uma lista
+        // vazia e o update inteiro morria em TypeError - o visual sumia da
+        // tela sem dizer por que.
+        if (!this.pontos.length) {
+            this.semLinhas("Todos os valores desta coluna estao em branco");
+            return;
+        }
 
         this.restaurarIntervalo(options);
 
@@ -391,6 +405,29 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
     // desenho
     // ------------------------------------------------------------------
 
+    /**
+     * O aviso segue os ajustes de Rotulos, com a mesma escala geral do resto
+     * do visual. Fica separado de calcularLayout porque precisa valer tambem
+     * nos estados em que nao ha layout nenhum para calcular.
+     */
+    private estilizarAviso(): void {
+        const cfgRotulos = this.config.rotulos;
+        const escala = limitar(this.config.slider.tamanho.value, 50, 300) / 100;
+        const tamanho = limitar(cfgRotulos.fonte.fontSize.value, 6, 40) * escala;
+
+        // style, nao attr: a regra `.aviso` do LESS e uma folha de estilo, e
+        // folha de estilo vence atributo de apresentacao em SVG. Por attr a
+        // fonte continuaria travada nos 12px fixos do CSS.
+        this.aviso
+            .style("fill", cfgRotulos.cor.value.value)
+            .style("font-family", cfgRotulos.fonte.fontFamily.value)
+            .style("font-size", tamanho.toFixed(1) + "px")
+            .style("font-weight", cfgRotulos.fonte.bold.value ? "600" : "400")
+            .style("font-style", cfgRotulos.fonte.italic.value ? "italic" : "normal")
+            .style("text-decoration", cfgRotulos.fonte.underline.value ? "underline" : "none")
+            .attr("y", (tamanho + 12).toFixed(1));
+    }
+
     private mostrarVazio(vazio: boolean, texto?: string): void {
         this.svg.classed("vazio", vazio);
         this.aviso
@@ -416,11 +453,11 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
     }
 
     /** Campo presente, porem sem linhas: nao mexe no intervalo do usuario. */
-    private semLinhas(): void {
+    private semLinhas(texto?: string): void {
         this.svg.classed("vazio", true);
         this.aviso
             .style("display", null)
-            .text("Nenhuma linha para os filtros atuais");
+            .text(texto || "Nenhuma linha para os filtros atuais");
 
         this.camadaMarcas.selectAll("circle.marca").remove();
         this.camadaRotulos.selectAll("text.rotulo").remove();

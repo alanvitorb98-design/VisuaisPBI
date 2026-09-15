@@ -231,6 +231,15 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
 
         if (!filtro || !filtro.conditions || filtro.conditions.length < 2) {
             this.periodo = this.config.periodos.padrao.value.value as Periodo;
+
+            // O chip do periodo inicial acendia sem nada ser filtrado: o
+            // visual dizia "7 dias" e o relatorio mostrava tudo. Aplicar aqui
+            // nao entra em laco - `restaurado` ja foi marcado antes desta
+            // chamada, entao o update seguinte nao volta a restaurar.
+            this.livre = calcularPeriodo(this.periodo, new Date());
+            if (this.livre) {
+                this.aplicarFiltro(this.livre);
+            }
             return;
         }
 
@@ -320,6 +329,21 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
             { id: "tudo", texto: "Tudo", ligado: cfg.tudo.value },
             { id: "livre", texto: "Personalizado", ligado: cfg.personalizado.value }
         ];
+
+        // Desligar no painel o chip que estava ativo deixava o filtro aplicado
+        // e a barra sem nada aceso: os dados ficavam filtrados sem o visual
+        // mostrar por que. Sem o chip o periodo fica inalcancavel, entao volta
+        // para tudo. A guarda do "tudo" evita laco: aplicarFiltro dispara um
+        // novo update, e sem ela esta ramificacao se repetiria.
+        const ativoSumiu = this.periodo !== null
+            && this.periodo !== "tudo"
+            && !definicoes.some(def => def.id === this.periodo && def.ligado);
+
+        if (ativoSumiu) {
+            this.periodo = "tudo";
+            this.livre = null;
+            this.aplicarFiltro(null);
+        }
 
         this.barra.textContent = "";
 

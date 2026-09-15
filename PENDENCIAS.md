@@ -9,9 +9,9 @@ Atualizado em 2026-09-15, no commit `92abeba` + extração de `comum/`.
 
 | Visual | Pasta | Versão |
 |---|---|---|
-| Slider Refeição | `Slider/sliderRefeicao` | 1.4.2.0 |
-| Seletor de Data | `Slider/seletorData` | 1.3.3.0 |
-| Filtro de Hierarquia | `Slider/filtroHierarquia` | 1.2.3.0 |
+| Slider Refeição | `Slider/sliderRefeicao` | 1.4.3.0 |
+| Seletor de Data | `Slider/seletorData` | 1.3.4.0 |
+| Filtro de Hierarquia | `Slider/filtroHierarquia` | 1.2.4.0 |
 
 Nos três: `npx tsc --noEmit` limpo, `npx eslint .` limpo, `npx pbiviz package` gera o `.pbiviz`.
 Lógica pura compartilhada em `Slider/comum/`, com 24 testes passando (seção 5).
@@ -30,6 +30,12 @@ Só entra aqui o que foi executado e conferido, não o que compila.
   (`0,2,0`) para vencer o `display:flex` das classes.
 - **Rendering Events** — saiu da lista de itens recomendados ausentes do `pbiviz package`.
 - **Filtro de data no relatório** — confirmado pelo usuário, depois de tirar a hierarquia do campo.
+- **Personalizações ligadas ponta a ponta** — 63/63 nos três. `Slider/comum/test/auditar.py`
+  cruza `capabilities.json` (persiste) × `settings.ts` (aparece) × `visual.ts` (é lido).
+  Nenhum ajuste órfão: nada aparece no painel sem efeito, nada tem efeito sem persistir.
+- **Coluna inteira em branco** — o Slider estourava em `TypeError` e sumia da tela;
+  reproduzido isolado antes da correção. Agora os três avisam em vez de quebrar.
+- **Período inicial** — o chip acendia sem filtrar nada. Agora aplica o intervalo ao abrir.
 
 ---
 
@@ -98,6 +104,16 @@ era a expectativa do teste errada, não o código, mas fixou a semântica por es
 
 **Ainda sem teste:** tudo que depende de DOM ou do Power BI — montagem da árvore de
 hierarquia, data joins do d3, e os três filtros de fato aplicando.
+
+Junto deles, `auditar.py` valida as personalizações sem abrir o Power BI:
+
+```
+python Slider/comum/test/auditar.py
+```
+
+Ele pegou dois defeitos reais na primeira rodada útil. Também deu 56 e depois 5 falsos
+positivos antes disso — alias local (`const ap = this.config.aparencia`), `topLevelSlice`
+e o composto `FontControl`. O número só passou a valer depois de ensinar esses três casos.
 
 Por decisão do projeto os testes ficam no `.gitignore` — rascunho local, não versionado.
 Consequência aceita: não viajam entre máquinas e não protegem quem clonar o repo.

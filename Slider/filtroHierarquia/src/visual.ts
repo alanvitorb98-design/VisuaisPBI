@@ -234,6 +234,14 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
 
         this.montarArvore(cat1.values, cat2 ? cat2.values : null);
 
+        // Ha linhas, mas todas com o nivel em branco: a arvore sai vazia e o
+        // visual ficava uma caixa em branco, sem dizer o que houve. Nao
+        // estoura como o slider estourava, mas tambem nao explica nada.
+        if (!this.arvoreDados.length) {
+            this.semLinhas("Todos os valores destes campos estao em branco");
+            return;
+        }
+
         if (!this.restaurado) {
             this.restaurado = true;
             this.restaurarDoFiltro(options);
@@ -384,8 +392,8 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
     }
 
     /** Campo presente, porem sem linhas: nao mexe na selecao do usuario. */
-    private semLinhas(): void {
-        this.aviso.textContent = "Nenhuma linha para os filtros atuais";
+    private semLinhas(texto?: string): void {
+        this.aviso.textContent = texto || "Nenhuma linha para os filtros atuais";
         this.aviso.hidden = false;
         this.raiz.classList.add("vazio");
         this.faixa.textContent = "";
