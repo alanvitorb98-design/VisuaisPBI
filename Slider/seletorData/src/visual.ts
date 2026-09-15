@@ -96,6 +96,9 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
     private aviso: HTMLElement;
 
     private alvoFiltro: IFilterColumnTarget = null;
+
+    /** true quando o alvo foi deduzido de uma hierarquia de data automatica. */
+    private viaHierarquia = false;
     private periodo: Periodo = null;
     private livre: Intervalo = null;
     private restaurado = false;
@@ -174,14 +177,17 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
 
         if (!this.alvoFiltro) {
             this.mostrarAviso(
-                "O campo veio como hierarquia de data, e o visual recebeu um nivel "
-                + "dela (Ano) em vez da coluna. No painel de campos, clique na seta "
+                "Este campo e uma hierarquia criada a mao, e nao da para deduzir "
+                + "qual coluna esta por baixo. No painel de campos, clique na seta "
                 + "do campo e escolha a coluna de data. Ela nao precisa ter hora."
             );
             return;
         }
 
-        const tipo = categoria.source.type;
+        // Pela hierarquia o nivel recebido e inteiro (Ano), mas o filtro vai
+        // para a coluna base, que e data. Checar o tipo aqui rejeitaria um
+        // caso que funciona.
+        const tipo = this.viaHierarquia ? null : categoria.source.type;
 
         if (tipo && !tipo.dateTime) {
             // Comparar >= e <= contra uma coluna de texto vira comparacao
@@ -258,11 +264,27 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
     private montarAlvo(fonte: powerbi.DataViewMetadataColumn): IFilterColumnTarget {
         const partes = (fonte.queryName || "").split(".");
 
-        if (partes.length !== 2 || !partes[0] || !partes[1]) {
+        if (!partes[0] || !partes[1]) {
             return null;
         }
 
-        return { table: partes[0], column: partes[1] };
+        // Tabela.Coluna - o campo foi arrastado como coluna
+        if (partes.length === 2) {
+            this.viaHierarquia = false;
+            return { table: partes[0], column: partes[1] };
+        }
+
+        // Tabela.Coluna.Variacao.Hierarquia.Nivel - hierarquia de data
+        // automatica do Power BI. O nivel que chega aqui e Ano, mas a coluna
+        // base e a segunda parte, entao da para filtrar nela mesmo assim.
+        if (partes.length === 5) {
+            this.viaHierarquia = true;
+            return { table: partes[0], column: partes[1] };
+        }
+
+        // hierarquia definida a mao: partes[1] e o nome da hierarquia, nao de
+        // uma coluna, e nao ha como deduzir qual coluna esta por baixo
+        return null;
     }
 
     /**
