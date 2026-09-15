@@ -27,6 +27,19 @@
   50%      { transform: rotate(9deg); }
 }
 
+/* vapor da xicara: sobe e se dissipa */
+@keyframes subir {
+  0%   { transform: translateY(1.5px);  opacity: 0; }
+  35%  { opacity: .6; }
+  100% { transform: translateY(-3.5px); opacity: 0; }
+}
+
+/* cloche do jantar: levanta e volta */
+@keyframes levantar {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-1.8px); }
+}
+
 svg.slider-refeicao {
   display: block;
   overflow: visible;
@@ -101,7 +114,7 @@ svg.slider-refeicao {
   }
 
   .icone-grupo {
-    #raios, #nucleo, #aura, #lua {
+    #raios, #nucleo, #aura, #lua, #vapor, #cloche {
       /* obrigatorio em SVG: sem isso o eixo vira o canto do viewport */
       transform-box: fill-box;
       transform-origin: center;
@@ -112,6 +125,8 @@ svg.slider-refeicao {
     #nucleo { animation: pulsar   2.2s ease-in-out infinite; }
     #aura   { animation: respirar 2.8s ease-in-out infinite; }
     #lua    { animation: balancar 2.4s ease-in-out infinite; }
+    #vapor  { animation: subir    2.6s ease-in-out infinite; }
+    #cloche { animation: levantar 2.0s ease-in-out infinite; }
   }
 
   &:hover,
