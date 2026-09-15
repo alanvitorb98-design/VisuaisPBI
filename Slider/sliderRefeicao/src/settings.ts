@@ -56,6 +56,12 @@ class CartaoSlider extends FormattingSettingsCard {
         value: true
     });
 
+    mostrarLimpar = new formattingSettings.ToggleSwitch({
+        name: "mostrarLimpar",
+        displayName: "Mostrar botão limpar",
+        value: true
+    });
+
     name: string = "slider";
     displayName: string = "Trilho e alça";
     slices: Array<FormattingSettingsSlice> = [
@@ -66,7 +72,8 @@ class CartaoSlider extends FormattingSettingsCard {
         this.espessuraTrilho,
         this.raioAlca,
         this.usarCorDaCategoria,
-        this.corAlca
+        this.corAlca,
+        this.mostrarLimpar
     ];
 }
 

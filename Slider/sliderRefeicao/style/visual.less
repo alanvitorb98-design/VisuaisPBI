@@ -86,6 +86,33 @@ svg.slider-refeicao {
   font-size: 12px;
 }
 
+/* botao que devolve o intervalo cheio, so aparece com filtro ativo */
+.limpar {
+  cursor: pointer;
+
+  .limpar-fundo {
+    fill: #F3F2F1;
+    transition: fill @dur-curta ease;
+  }
+
+  .limpar-x {
+    stroke: #605E5C;
+    stroke-width: 1.6;
+    stroke-linecap: round;
+    transition: stroke @dur-curta ease;
+  }
+
+  &:hover {
+    .limpar-fundo { fill: #E1DFDD; }
+    .limpar-x     { stroke: #201F1E; }
+  }
+}
+
+/* as duas alcas no mesmo ponto: esconde a de tras para nao dobrar a sombra */
+svg.ponto-unico .alca-inicio {
+  visibility: hidden;
+}
+
 .alca {
   cursor: grab;
 

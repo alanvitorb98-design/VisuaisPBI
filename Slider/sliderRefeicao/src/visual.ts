@@ -2,13 +2,12 @@
 
 import * as d3 from "d3";
 import powerbi from "powerbi-visuals-api";
-import ISelectionId = powerbi.visuals.ISelectionId;
-import ISelectionManager = powerbi.extensibility.ISelectionManager;
 import IVisualHost = powerbi.extensibility.visual.IVisualHost;
 import VisualConstructorOptions = powerbi.extensibility.visual.VisualConstructorOptions;
 import VisualUpdateOptions = powerbi.extensibility.visual.VisualUpdateOptions;
 
 import { FormattingSettingsService } from "powerbi-visuals-utils-formattingmodel";
+import { BasicFilter, IBasicFilter, IFilterColumnTarget } from "powerbi-models";
 
 import { ConfiguracoesVisual } from "./settings";
 import { iconePara, nosDoIcone } from "./icones";
@@ -21,7 +20,6 @@ interface Ponto {
     pos: number;
     cor: string;
     icone: string;
-    id: ISelectionId;
 }
 
 interface Layout {
@@ -36,11 +34,26 @@ interface Layout {
     fonte: number;
     corRotulo: string;
     destacarRotulo: boolean;
+    largura: number;
+}
+
+/** Uma das duas alças do intervalo. */
+interface Alca {
+    grupo: d3.Selection<SVGGElement, unknown, null, undefined>;
+    halo: d3.Selection<SVGCircleElement, unknown, null, undefined>;
+    anel: d3.Selection<SVGCircleElement, unknown, null, undefined>;
+    corpo: d3.Selection<SVGCircleElement, unknown, null, undefined>;
+    icone: d3.Selection<SVGGElement, unknown, null, undefined>;
+    desenhado: string;
 }
 
 const PALETA = ["#F6C453", "#F28C28", "#E07A5F", "#7B5EA7", "#2C3E70"];
 const VB = 24;
 const DUR = 220;
+
+/** Nome do objeto e da propriedade que guardam o filtro (ver capabilities.json). */
+const OBJETO_FILTRO = "geral";
+const PROP_FILTRO = "filtro";
 
 function limitar(valor: number, minimo: number, maximo: number): number {
     if (!isFinite(valor)) {
@@ -51,7 +64,6 @@ function limitar(valor: number, minimo: number, maximo: number): number {
 
 export class Visual implements powerbi.extensibility.visual.IVisual {
     private host: IVisualHost;
-    private selectionManager: ISelectionManager;
     private servicoFormatacao: FormattingSettingsService;
     private config: ConfiguracoesVisual;
 
@@ -60,21 +72,24 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
     private trilhoAtivo: d3.Selection<SVGLineElement, unknown, null, undefined>;
     private camadaMarcas: d3.Selection<SVGGElement, unknown, null, undefined>;
     private camadaRotulos: d3.Selection<SVGGElement, unknown, null, undefined>;
-    private alca: d3.Selection<SVGGElement, unknown, null, undefined>;
-    private halo: d3.Selection<SVGCircleElement, unknown, null, undefined>;
-    private corpo: d3.Selection<SVGCircleElement, unknown, null, undefined>;
-    private anel: d3.Selection<SVGCircleElement, unknown, null, undefined>;
-    private grupoIcone: d3.Selection<SVGGElement, unknown, null, undefined>;
+    private limpar: d3.Selection<SVGGElement, unknown, null, undefined>;
     private aviso: d3.Selection<SVGTextElement, unknown, null, undefined>;
 
+    private alcaInicio: Alca;
+    private alcaFim: Alca;
+
     private pontos: Ponto[] = [];
-    private chaveAtual: string = null;
     private layout: Layout = null;
-    private iconeDesenhado: string = null;
+    private alvoFiltro: IFilterColumnTarget = null;
+
+    /** Extremos do intervalo, guardados pelo nome para sobreviver a refresh. */
+    private chaveInicio: string = null;
+    private chaveFim: string = null;
+    private iInicio = 0;
+    private iFim = 0;
 
     constructor(options: VisualConstructorOptions) {
         this.host = options.host;
-        this.selectionManager = this.host.createSelectionManager();
         this.servicoFormatacao = new FormattingSettingsService();
 
         this.svg = d3.select(options.element)
@@ -98,15 +113,31 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
         this.camadaMarcas = this.svg.append("g").attr("class", "marcas");
         this.camadaRotulos = this.svg.append("g").attr("class", "rotulos");
 
-        this.alca = this.svg.append("g").attr("class", "alca");
-        this.halo = this.alca.append("circle").attr("class", "halo");
-        this.corpo = this.alca.append("circle").attr("class", "corpo");
-        this.anel = this.alca.append("circle").attr("class", "anel");
-        this.grupoIcone = this.alca.append("g").attr("class", "icone-grupo");
+        this.alcaInicio = this.criarAlca("inicio");
+        this.alcaFim = this.criarAlca("fim");
+
+        this.limpar = this.svg.append("g").attr("class", "limpar");
+        this.limpar.append("circle").attr("class", "limpar-fundo").attr("r", 9);
+        this.limpar.append("path")
+            .attr("class", "limpar-x")
+            .attr("d", "M-3.1 -3.1 L3.1 3.1 M3.1 -3.1 L-3.1 3.1");
+        this.limpar.append("title").text("Limpar o filtro e voltar a mostrar todas as refeições");
 
         this.aviso = this.svg.append("text")
             .attr("class", "aviso")
             .attr("x", 12).attr("y", 24);
+    }
+
+    private criarAlca(classe: string): Alca {
+        const grupo = this.svg.append("g").attr("class", "alca alca-" + classe);
+        return {
+            grupo: grupo,
+            halo: grupo.append("circle").attr("class", "halo"),
+            corpo: grupo.append("circle").attr("class", "corpo"),
+            anel: grupo.append("circle").attr("class", "anel"),
+            icone: grupo.append("g").attr("class", "icone-grupo"),
+            desenhado: null
+        };
     }
 
     public update(options: VisualUpdateOptions): void {
@@ -127,6 +158,8 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
         }
         this.mostrarVazio(false);
 
+        this.alvoFiltro = this.montarAlvo(categoria.source);
+
         const valores = dataView.categorical.values;
         const ordens = (valores && valores[0] && valores[0].values) || [];
 
@@ -139,10 +172,7 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
                 ordem: Number(bruto !== null && bruto !== undefined ? bruto : indiceOriginal),
                 pos: 0,
                 cor: "",
-                icone: iconePara(nome),
-                id: this.host.createSelectionIdBuilder()
-                    .withCategory(categoria, indiceOriginal)
-                    .createSelectionId()
+                icone: iconePara(nome)
             };
         });
 
@@ -152,15 +182,11 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
             ponto.cor = PALETA[i % PALETA.length];
         });
 
-        let indice = this.pontos.findIndex(p => p.chave === this.chaveAtual);
-        if (indice < 0) {
-            indice = 0;
-        }
-        this.chaveAtual = this.pontos[indice].chave;
+        this.restaurarIntervalo(options);
 
         this.calcularLayout(options.viewport.width, options.viewport.height);
         this.desenharEstrutura();
-        this.desenharEstado(indice, false);
+        this.desenharEstado(false);
         this.ligarInteracoes();
     }
 
@@ -168,8 +194,93 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
         return this.servicoFormatacao.buildFormattingModel(this.config);
     }
 
-    public destroy(): void {
-        this.selectionManager.clear();
+    // ------------------------------------------------------------------
+    // filtro
+    // ------------------------------------------------------------------
+
+    /**
+     * Alvo do filtro no modelo semantico. O queryName vem como
+     * "Tabela.Coluna", e o BasicFilter precisa das duas partes separadas.
+     */
+    private montarAlvo(fonte: powerbi.DataViewMetadataColumn): IFilterColumnTarget {
+        const consulta = fonte.queryName || "";
+        const ponto = consulta.indexOf(".");
+        return {
+            table: ponto > 0 ? consulta.substring(0, ponto) : consulta,
+            column: fonte.displayName
+        };
+    }
+
+    /**
+     * Recoloca as alcas a partir do filtro que ja esta no relatorio.
+     *
+     * Sem isso, reabrir o relatorio mostraria o intervalo cheio enquanto os
+     * outros visuais continuam filtrados - a barra mentiria sobre o estado.
+     */
+    private restaurarIntervalo(options: VisualUpdateOptions): void {
+        const ultimo = this.pontos.length - 1;
+
+        if (this.chaveInicio === null) {
+            const filtros = options.jsonFilters;
+            const filtro = (filtros && filtros.length ? filtros[0] : null) as IBasicFilter;
+            const valores = filtro && filtro.values ? filtro.values.map(v => String(v)) : [];
+
+            if (valores.length) {
+                const posicoes = this.pontos
+                    .filter(p => valores.indexOf(p.nome) >= 0)
+                    .map(p => p.pos);
+                if (posicoes.length) {
+                    this.chaveInicio = this.pontos[Math.min.apply(null, posicoes)].chave;
+                    this.chaveFim = this.pontos[Math.max.apply(null, posicoes)].chave;
+                }
+            }
+        }
+
+        this.iInicio = this.acharPos(this.chaveInicio, 0);
+        this.iFim = this.acharPos(this.chaveFim, ultimo);
+
+        if (this.iInicio > this.iFim) {
+            this.iInicio = 0;
+            this.iFim = ultimo;
+        }
+
+        this.chaveInicio = this.pontos[this.iInicio].chave;
+        this.chaveFim = this.pontos[this.iFim].chave;
+    }
+
+    private acharPos(chave: string, padrao: number): number {
+        if (chave === null) {
+            return padrao;
+        }
+        const achado = this.pontos.findIndex(p => p.chave === chave);
+        return achado < 0 ? padrao : achado;
+    }
+
+    private get cobreTudo(): boolean {
+        return this.iInicio === 0 && this.iFim === this.pontos.length - 1;
+    }
+
+    /**
+     * Aplica o intervalo como filtro de verdade. Intervalo cheio remove o
+     * filtro em vez de listar tudo, senao o relatorio carregaria uma
+     * condicao "In (todos)" que nao filtra nada e ainda aparece no painel.
+     */
+    private aplicarFiltro(): void {
+        if (!this.alvoFiltro) {
+            return;
+        }
+
+        if (this.cobreTudo) {
+            this.host.applyJsonFilter(null, OBJETO_FILTRO, PROP_FILTRO, powerbi.FilterAction.remove);
+            return;
+        }
+
+        const nomes = this.pontos
+            .slice(this.iInicio, this.iFim + 1)
+            .map(p => p.nome);
+
+        const filtro = new BasicFilter(this.alvoFiltro, "In", nomes);
+        this.host.applyJsonFilter(filtro, OBJETO_FILTRO, PROP_FILTRO, powerbi.FilterAction.merge);
     }
 
     // ------------------------------------------------------------------
@@ -185,10 +296,8 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
         const fonte = limitar(cfgRotulos.fonte.fontSize.value, 6, 40);
         const mostrarRotulos = cfgRotulos.mostrar.value;
 
-        // a alca nunca passa de 30% da altura, senao o rotulo fica sem espaco
         const raio = limitar(cfgSlider.raioAlca.value, 6, Math.max(6, altura * 0.30));
 
-        // margem lateral acompanha a largura, mas sempre cabe a alca inteira
         const margem = Math.max(raio + 6, Math.min(largura * 0.14, 72));
         const esq = Math.min(margem, largura / 2);
         const dir = Math.max(esq + 1, largura - margem);
@@ -208,7 +317,8 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
             escalaIcone: limitar(cfgIcone.escala.value, 40, 200) / 100,
             fonte: fonte,
             corRotulo: cfgRotulos.cor.value.value,
-            destacarRotulo: cfgRotulos.destacarSelecionado.value
+            destacarRotulo: cfgRotulos.destacarSelecionado.value,
+            largura: largura
         };
     }
 
@@ -221,7 +331,6 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
         return this.layout.esq + passo * indice;
     }
 
-    /** Indice do ponto mais proximo de uma coordenada x. */
     private maisProximo(x: number): number {
         let melhor = 0;
         let menorDistancia = Infinity;
@@ -246,7 +355,6 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
             .text("Arraste o campo Refeicao para o visual");
     }
 
-    /** Tudo que depende so do layout, nao do item selecionado. */
     private desenharEstrutura(): void {
         const lay = this.layout;
         const cfgSlider = this.config.slider;
@@ -262,12 +370,10 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
             .attr("stroke-width", lay.espessura);
 
         this.trilhoAtivo
-            .attr("x1", lay.esq)
             .attr("y1", lay.y).attr("y2", lay.y)
             .attr("stroke", lay.corDestaque)
             .attr("stroke-width", lay.espessura);
 
-        // ----- marcadores -----
         const dadosMarcas = cfgSlider.mostrarMarcadores.value ? this.pontos : [];
         const marcas = this.camadaMarcas
             .selectAll<SVGCircleElement, Ponto>("circle.marca")
@@ -287,7 +393,6 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
             .attr("cx", d => this.posX(d.pos))
             .attr("r", Math.max(3, lay.espessura * 0.85));
 
-        // ----- rotulos -----
         const dadosRotulos = cfgRotulos.mostrar.value ? this.pontos : [];
         const encurtar = this.criarEncurtador();
 
@@ -314,17 +419,16 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
             .transition().duration(DUR)
             .attr("x", d => this.posX(d.pos));
 
-        // ----- alca -----
-        this.corpo.attr("r", lay.raio);
-        this.anel.attr("r", lay.raio).attr("stroke-width", Math.max(2, lay.espessura * 0.45));
-        this.halo.attr("r", lay.raio * 1.5);
-        this.grupoIcone.style("display", cfgIcone.mostrar.value ? null : "none");
+        [this.alcaInicio, this.alcaFim].forEach(alca => {
+            alca.corpo.attr("r", lay.raio);
+            alca.anel.attr("r", lay.raio).attr("stroke-width", Math.max(2, lay.espessura * 0.45));
+            alca.halo.attr("r", lay.raio * 1.5);
+            alca.icone.style("display", cfgIcone.mostrar.value ? null : "none");
+        });
+
+        this.limpar.attr("transform", "translate(" + (lay.largura - 14) + ", 13)");
     }
 
-    /**
-     * Rotulo longo demais para o espaco entre marcadores vira "texto...".
-     * Largura estimada em 0.55em por caractere, suficiente para Segoe UI.
-     */
     private criarEncurtador(): (texto: string) => string {
         const total = this.pontos.length;
         const larguraDisponivel = total > 1
@@ -337,45 +441,62 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
             texto.length > maximo ? texto.substring(0, maximo - 1) + "…" : texto;
     }
 
-    /** Tudo que muda quando o item selecionado muda. */
-    private desenharEstado(indice: number, animar: boolean): void {
+    private desenharEstado(animar: boolean): void {
         const lay = this.layout;
-        const atual = this.pontos[indice];
         const duracao = animar ? DUR : 0;
 
-        const corAlca = this.config.slider.usarCorDaCategoria.value
-            ? atual.cor
-            : this.config.slider.corAlca.value.value;
+        this.moverAlca(this.alcaInicio, this.iInicio, duracao);
+        this.moverAlca(this.alcaFim, this.iFim, duracao);
 
-        this.alca.interrupt()
-            .transition().duration(duracao)
-            .attr("transform", "translate(" + this.posX(indice) + ", " + lay.y + ")");
+        // as duas alcas no mesmo ponto viram um disco so; marca isso para o CSS
+        this.svg.classed("ponto-unico", this.iInicio === this.iFim);
 
         this.trilhoAtivo.interrupt()
             .transition().duration(duracao)
-            .attr("x2", this.posX(indice));
-
-        this.halo.attr("fill", corAlca);
-        this.anel.attr("stroke", corAlca);
+            .attr("x1", this.posX(this.iInicio))
+            .attr("x2", this.posX(this.iFim));
 
         this.camadaMarcas.selectAll<SVGCircleElement, Ponto>("circle.marca")
-            .classed("percorrido", d => d.pos <= indice)
-            .attr("fill", d => d.pos <= indice ? lay.corDestaque : lay.corMarcador);
+            .classed("dentro", d => d.pos >= this.iInicio && d.pos <= this.iFim)
+            .attr("fill", d => d.pos >= this.iInicio && d.pos <= this.iFim
+                ? lay.corDestaque
+                : lay.corMarcador);
 
         this.camadaRotulos.selectAll<SVGTextElement, Ponto>("text.rotulo")
-            .classed("selecionado", d => lay.destacarRotulo && d.pos === indice);
+            .classed("selecionado", d => lay.destacarRotulo
+                && d.pos >= this.iInicio
+                && d.pos <= this.iFim);
+
+        const mostrarLimpar = this.config.slider.mostrarLimpar.value && !this.cobreTudo;
+        this.limpar.style("display", mostrarLimpar ? null : "none");
+    }
+
+    private moverAlca(alca: Alca, indice: number, duracao: number): void {
+        const lay = this.layout;
+        const ponto = this.pontos[indice];
+
+        const cor = this.config.slider.usarCorDaCategoria.value
+            ? ponto.cor
+            : this.config.slider.corAlca.value.value;
+
+        alca.grupo.interrupt()
+            .transition().duration(duracao)
+            .attr("transform", "translate(" + this.posX(indice) + ", " + lay.y + ")");
+
+        alca.halo.attr("fill", cor);
+        alca.anel.attr("stroke", cor);
 
         const escala = (lay.raio * 1.7 * lay.escalaIcone) / VB;
-        this.grupoIcone
+        alca.icone
             .attr("transform",
                 "translate(" + (-VB / 2 * escala) + ", " + (-VB / 2 * escala) + ") scale(" + escala + ")")
-            .style("color", corAlca);
+            .style("color", cor);
 
-        // so remonta quando o desenho muda de fato, senao as animacoes reiniciam a cada update
-        if (this.iconeDesenhado !== atual.icone) {
-            this.iconeDesenhado = atual.icone;
-            this.grupoIcone.selectAll("*").remove();
-            this.grupoIcone.node().appendChild(nosDoIcone(atual.icone));
+        // so remonta quando o desenho muda, senao as animacoes reiniciam a cada update
+        if (alca.desenhado !== ponto.icone) {
+            alca.desenhado = ponto.icone;
+            alca.icone.selectAll("*").remove();
+            alca.icone.node().appendChild(nosDoIcone(ponto.icone));
         }
     }
 
@@ -384,38 +505,75 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
     // ------------------------------------------------------------------
 
     private ligarInteracoes(): void {
-        const lay = this.layout;
-
-        this.alca.call(
-            d3.drag<SVGGElement, unknown>()
-                .on("start", () => {
-                    this.alca.classed("arrastando", true);
-                })
-                .on("drag", (evento: d3.D3DragEvent<SVGGElement, unknown, unknown>) => {
-                    const x = limitar(evento.x, lay.esq, lay.dir);
-                    this.alca.interrupt().attr("transform", "translate(" + x + ", " + lay.y + ")");
-                    this.trilhoAtivo.interrupt().attr("x2", x);
-                })
-                .on("end", (evento: d3.D3DragEvent<SVGGElement, unknown, unknown>) => {
-                    this.alca.classed("arrastando", false);
-                    this.aplicar(this.maisProximo(limitar(evento.x, lay.esq, lay.dir)));
-                })
-        );
+        this.arrastar(this.alcaInicio, true);
+        this.arrastar(this.alcaFim, false);
 
         this.camadaMarcas.selectAll<SVGCircleElement, Ponto>("circle.marca")
-            .on("click", (evento: MouseEvent, d: Ponto) => this.aplicar(d.pos));
+            .on("click", (evento: MouseEvent, d: Ponto) => this.cliqueEmPonto(d.pos));
 
         this.camadaRotulos.selectAll<SVGTextElement, Ponto>("text.rotulo")
-            .on("click", (evento: MouseEvent, d: Ponto) => this.aplicar(d.pos));
+            .on("click", (evento: MouseEvent, d: Ponto) => this.cliqueEmPonto(d.pos));
+
+        this.limpar.on("click", () => {
+            this.definirIntervalo(0, this.pontos.length - 1);
+        });
     }
 
-    private aplicar(indice: number): void {
-        if (indice < 0 || indice >= this.pontos.length) {
-            return;
-        }
+    private arrastar(alca: Alca, ehInicio: boolean): void {
+        const lay = this.layout;
 
-        this.chaveAtual = this.pontos[indice].chave;
-        this.desenharEstado(indice, true);
-        this.selectionManager.select(this.pontos[indice].id);
+        alca.grupo.call(
+            d3.drag<SVGGElement, unknown>()
+                .on("start", () => {
+                    alca.grupo.classed("arrastando", true);
+                    alca.grupo.raise();
+                })
+                .on("drag", (evento: d3.D3DragEvent<SVGGElement, unknown, unknown>) => {
+                    const limiteEsq = ehInicio ? lay.esq : this.posX(this.iInicio);
+                    const limiteDir = ehInicio ? this.posX(this.iFim) : lay.dir;
+                    const x = limitar(evento.x, limiteEsq, limiteDir);
+
+                    alca.grupo.interrupt().attr("transform", "translate(" + x + ", " + lay.y + ")");
+                    this.trilhoAtivo.interrupt()
+                        .attr(ehInicio ? "x1" : "x2", x);
+                })
+                .on("end", (evento: d3.D3DragEvent<SVGGElement, unknown, unknown>) => {
+                    alca.grupo.classed("arrastando", false);
+
+                    const limiteEsq = ehInicio ? lay.esq : this.posX(this.iInicio);
+                    const limiteDir = ehInicio ? this.posX(this.iFim) : lay.dir;
+                    const alvo = this.maisProximo(limitar(evento.x, limiteEsq, limiteDir));
+
+                    if (ehInicio) {
+                        this.definirIntervalo(Math.min(alvo, this.iFim), this.iFim);
+                    } else {
+                        this.definirIntervalo(this.iInicio, Math.max(alvo, this.iInicio));
+                    }
+                })
+        );
+    }
+
+    /** Clicar num ponto move a alca mais perto dele, encurtando ou esticando o intervalo. */
+    private cliqueEmPonto(pos: number): void {
+        const distInicio = Math.abs(pos - this.iInicio);
+        const distFim = Math.abs(pos - this.iFim);
+
+        if (distInicio <= distFim) {
+            this.definirIntervalo(Math.min(pos, this.iFim), this.iFim);
+        } else {
+            this.definirIntervalo(this.iInicio, Math.max(pos, this.iInicio));
+        }
+    }
+
+    private definirIntervalo(inicio: number, fim: number): void {
+        const ultimo = this.pontos.length - 1;
+        this.iInicio = limitar(inicio, 0, ultimo);
+        this.iFim = limitar(fim, this.iInicio, ultimo);
+
+        this.chaveInicio = this.pontos[this.iInicio].chave;
+        this.chaveFim = this.pontos[this.iFim].chave;
+
+        this.desenharEstado(true);
+        this.aplicarFiltro();
     }
 }

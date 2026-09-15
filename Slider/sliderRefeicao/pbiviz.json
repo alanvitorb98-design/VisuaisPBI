@@ -4,8 +4,8 @@
         "displayName": "Slider Refeição",
         "guid": "sliderRefeicaoA98867E6947A4422950D6098F442B77D",
         "visualClassName": "Visual",
-        "version": "1.1.0.0",
-        "description": "Slider horizontal de refeições com ícones. Arraste a alça ou clique em um marcador para filtrar o relatório pela refeição selecionada. Trilho, marcadores, rótulos e ícone são configuráveis no painel Formatar.",
+        "version": "1.2.0.0",
+        "description": "Slider de intervalo de refeições com ícones. Arraste as duas alças para escolher de qual até qual refeição filtrar o relatório; o botão limpar devolve todas. Trilho, marcadores, rótulos e ícone são configuráveis no painel Formatar.",
         "supportUrl": "https://github.com/alanvitorb98-design/VisuaisPBI/issues",
         "gitHubUrl": "https://github.com/alanvitorb98-design/VisuaisPBI"
     },
@@ -22,5 +22,5 @@
     "capabilities": "capabilities.json",
     "dependencies": null,
     "stringResources": [],
-    "version": "1.1.0.0"
+    "version": "1.2.0.0"
 }
