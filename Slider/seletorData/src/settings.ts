@@ -90,6 +90,12 @@ class CartaoAparencia extends FormattingSettingsCard {
         value: 100
     });
 
+    espacamento = new formattingSettings.NumUpDown({
+        name: "espacamento",
+        displayName: "Espaçamento",
+        value: 6
+    });
+
     fundoTransparente = new formattingSettings.ToggleSwitch({
         name: "fundoTransparente",
         displayName: "Fundo transparente",
@@ -140,7 +146,7 @@ class CartaoAparencia extends FormattingSettingsCard {
     slices: Array<FormattingSettingsSlice> = [
         this.corDestaque, this.corChip, this.corTexto,
         this.fundoTransparente, this.corFundo,
-        this.raio, this.tamanho, this.alinhamento, this.fonte
+        this.raio, this.tamanho, this.espacamento, this.alinhamento, this.fonte
     ];
 }
 

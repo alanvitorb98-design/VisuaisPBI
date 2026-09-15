@@ -1,13 +1,23 @@
 {
   "dataRoles": [
-    { "displayName": "Data", "name": "data", "kind": "Grouping" }
+    {
+      "displayName": "Data",
+      "name": "data",
+      "kind": "Grouping"
+    }
   ],
   "dataViewMappings": [
     {
       "categorical": {
         "categories": {
-          "for": { "in": "data" },
-          "dataReductionAlgorithm": { "top": { "count": 1 } }
+          "for": {
+            "in": "data"
+          },
+          "dataReductionAlgorithm": {
+            "top": {
+              "count": 1
+            }
+          }
         }
       }
     }
@@ -15,29 +25,86 @@
   "objects": {
     "geral": {
       "properties": {
-        "filtro": { "type": { "filter": {} } }
+        "filtro": {
+          "type": {
+            "filter": {}
+          }
+        }
       }
     },
     "periodos": {
       "displayName": "Períodos",
       "properties": {
-        "hoje": { "displayName": "Hoje", "type": { "bool": true } },
-        "sete": { "displayName": "Últimos 7 dias", "type": { "bool": true } },
-        "trinta": { "displayName": "Últimos 30 dias", "type": { "bool": true } },
-        "mes": { "displayName": "Mês atual", "type": { "bool": true } },
-        "ano": { "displayName": "Ano atual", "type": { "bool": true } },
-        "tudo": { "displayName": "Tudo", "type": { "bool": true } },
-        "personalizado": { "displayName": "Personalizado", "type": { "bool": true } },
+        "hoje": {
+          "displayName": "Hoje",
+          "type": {
+            "bool": true
+          }
+        },
+        "sete": {
+          "displayName": "Últimos 7 dias",
+          "type": {
+            "bool": true
+          }
+        },
+        "trinta": {
+          "displayName": "Últimos 30 dias",
+          "type": {
+            "bool": true
+          }
+        },
+        "mes": {
+          "displayName": "Mês atual",
+          "type": {
+            "bool": true
+          }
+        },
+        "ano": {
+          "displayName": "Ano atual",
+          "type": {
+            "bool": true
+          }
+        },
+        "tudo": {
+          "displayName": "Tudo",
+          "type": {
+            "bool": true
+          }
+        },
+        "personalizado": {
+          "displayName": "Personalizado",
+          "type": {
+            "bool": true
+          }
+        },
         "padrao": {
           "displayName": "Período inicial",
           "type": {
             "enumeration": [
-              { "value": "tudo", "displayName": "Tudo" },
-              { "value": "hoje", "displayName": "Hoje" },
-              { "value": "sete", "displayName": "Últimos 7 dias" },
-              { "value": "trinta", "displayName": "Últimos 30 dias" },
-              { "value": "mes", "displayName": "Mês atual" },
-              { "value": "ano", "displayName": "Ano atual" }
+              {
+                "value": "tudo",
+                "displayName": "Tudo"
+              },
+              {
+                "value": "hoje",
+                "displayName": "Hoje"
+              },
+              {
+                "value": "sete",
+                "displayName": "Últimos 7 dias"
+              },
+              {
+                "value": "trinta",
+                "displayName": "Últimos 30 dias"
+              },
+              {
+                "value": "mes",
+                "displayName": "Mês atual"
+              },
+              {
+                "value": "ano",
+                "displayName": "Ano atual"
+              }
             ]
           }
         }
@@ -48,38 +115,121 @@
       "properties": {
         "corDestaque": {
           "displayName": "Cor do selecionado",
-          "type": { "fill": { "solid": { "color": true } } }
+          "type": {
+            "fill": {
+              "solid": {
+                "color": true
+              }
+            }
+          }
         },
         "corChip": {
           "displayName": "Cor do chip",
-          "type": { "fill": { "solid": { "color": true } } }
+          "type": {
+            "fill": {
+              "solid": {
+                "color": true
+              }
+            }
+          }
         },
         "corTexto": {
           "displayName": "Cor do texto",
-          "type": { "fill": { "solid": { "color": true } } }
+          "type": {
+            "fill": {
+              "solid": {
+                "color": true
+              }
+            }
+          }
         },
-        "raio": { "displayName": "Arredondamento", "type": { "numeric": true } },
-        "tamanho": { "displayName": "Tamanho do chip (%)", "type": { "numeric": true } },
-        "fundoTransparente": { "displayName": "Fundo transparente", "type": { "bool": true } },
+        "raio": {
+          "displayName": "Arredondamento",
+          "type": {
+            "numeric": true
+          }
+        },
+        "tamanho": {
+          "displayName": "Tamanho do chip (%)",
+          "type": {
+            "numeric": true
+          }
+        },
+        "fundoTransparente": {
+          "displayName": "Fundo transparente",
+          "type": {
+            "bool": true
+          }
+        },
         "corFundo": {
           "displayName": "Cor do fundo",
-          "type": { "fill": { "solid": { "color": true } } }
+          "type": {
+            "fill": {
+              "solid": {
+                "color": true
+              }
+            }
+          }
         },
         "alinhamento": {
           "displayName": "Alinhamento",
           "type": {
             "enumeration": [
-              { "value": "center", "displayName": "Centro" },
-              { "value": "flex-start", "displayName": "Esquerda" },
-              { "value": "flex-end", "displayName": "Direita" }
+              {
+                "value": "center",
+                "displayName": "Centro"
+              },
+              {
+                "value": "flex-start",
+                "displayName": "Esquerda"
+              },
+              {
+                "value": "flex-end",
+                "displayName": "Direita"
+              }
             ]
           }
         },
-        "fontFamily": { "displayName": "Fonte", "type": { "formatting": { "fontFamily": true } } },
-        "fontSize": { "displayName": "Tamanho", "type": { "formatting": { "fontSize": true } } },
-        "bold": { "displayName": "Negrito", "type": { "bool": true } },
-        "italic": { "displayName": "Itálico", "type": { "bool": true } },
-        "underline": { "displayName": "Sublinhado", "type": { "bool": true } }
+        "fontFamily": {
+          "displayName": "Fonte",
+          "type": {
+            "formatting": {
+              "fontFamily": true
+            }
+          }
+        },
+        "fontSize": {
+          "displayName": "Tamanho",
+          "type": {
+            "formatting": {
+              "fontSize": true
+            }
+          }
+        },
+        "bold": {
+          "displayName": "Negrito",
+          "type": {
+            "bool": true
+          }
+        },
+        "italic": {
+          "displayName": "Itálico",
+          "type": {
+            "bool": true
+          }
+        },
+        "underline": {
+          "displayName": "Sublinhado",
+          "type": {
+            "bool": true
+          }
+        },
+        "espacamento": {
+          "displayName": "Espaçamento",
+          "type": {
+            "numeric": true
+          }
+        }
       }
     }
   },

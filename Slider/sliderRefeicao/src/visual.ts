@@ -65,7 +65,13 @@ function limitar(valor: number, minimo: number, maximo: number): number {
 export class Visual implements powerbi.extensibility.visual.IVisual {
     private host: IVisualHost;
     private servicoFormatacao: FormattingSettingsService;
-    private config: ConfiguracoesVisual;
+    /**
+     * Ja nasce com os padroes: o Power BI pode chamar getFormattingModel
+     * antes do primeiro update (abrir o painel Formatar num visual sem campo
+     * vinculado faz isso), e buildFormattingModel(undefined) lanca - o painel
+     * fica sem nenhum card em vez de mostrar os ajustes.
+     */
+    private config: ConfiguracoesVisual = new ConfiguracoesVisual();
 
     private svg: d3.Selection<SVGSVGElement, unknown, null, undefined>;
     private trilho: d3.Selection<SVGLineElement, unknown, null, undefined>;

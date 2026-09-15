@@ -37,7 +37,13 @@ interface Pai {
 export class Visual implements powerbi.extensibility.visual.IVisual {
     private host: IVisualHost;
     private servicoFormatacao: FormattingSettingsService;
-    private config: ConfiguracoesVisual;
+    /**
+     * Ja nasce com os padroes: o Power BI pode chamar getFormattingModel
+     * antes do primeiro update (abrir o painel Formatar num visual sem campo
+     * vinculado faz isso), e buildFormattingModel(undefined) lanca - o painel
+     * fica sem nenhum card em vez de mostrar os ajustes.
+     */
+    private config: ConfiguracoesVisual = new ConfiguracoesVisual();
 
     private raiz: HTMLElement;
     private faixa: HTMLElement;
@@ -163,6 +169,10 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
             dataView
         );
 
+        // antes dos retornos: com o visual em estado de aviso o estilo nao
+        // era aplicado, e mexer nos ajustes parecia nao surtir efeito nenhum
+        this.aplicarEstilo(options.viewport.height);
+
         const categorias = dataView
             && dataView.categorical
             && dataView.categorical.categories;
@@ -203,7 +213,6 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
             this.restaurarDoFiltro(options);
         }
 
-        this.aplicarEstilo(options.viewport.height);
         this.desenharTudo();
     }
 

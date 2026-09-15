@@ -80,7 +80,13 @@ function mesmoDia(a: Date, b: Date): boolean {
 export class Visual implements powerbi.extensibility.visual.IVisual {
     private host: IVisualHost;
     private servicoFormatacao: FormattingSettingsService;
-    private config: ConfiguracoesVisual;
+    /**
+     * Ja nasce com os padroes: o Power BI pode chamar getFormattingModel
+     * antes do primeiro update (abrir o painel Formatar num visual sem campo
+     * vinculado faz isso), e buildFormattingModel(undefined) lanca - o painel
+     * fica sem nenhum card em vez de mostrar os ajustes.
+     */
+    private config: ConfiguracoesVisual = new ConfiguracoesVisual();
 
     private raiz: HTMLElement;
     private barra: HTMLElement;
@@ -145,6 +151,10 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
             dataView
         );
 
+        // antes dos retornos: com o visual em estado de aviso o estilo nao
+        // era aplicado, e mexer nos ajustes parecia nao surtir efeito nenhum
+        this.aplicarEstilo(options.viewport.height);
+
         const categoria = dataView
             && dataView.categorical
             && dataView.categorical.categories
@@ -152,6 +162,22 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
 
         if (!categoria) {
             this.mostrarAviso("Arraste o campo Data para o visual");
+            return;
+        }
+
+        // A hierarquia vem primeiro de proposito. Arrastar um campo de data no
+        // Desktop cria por padrao a hierarquia Ano/Trimestre/Mes/Dia, e o
+        // nivel que chega aqui e Ano - um inteiro. Checar o tipo antes diria
+        // "a coluna e Numero", culpando a coluna, quando a coluna esta certa
+        // e o problema e a hierarquia no lugar dela.
+        this.alvoFiltro = this.montarAlvo(categoria.source);
+
+        if (!this.alvoFiltro) {
+            this.mostrarAviso(
+                "O campo veio como hierarquia de data, e o visual recebeu um nivel "
+                + "dela (Ano) em vez da coluna. No painel de campos, clique na seta "
+                + "do campo e escolha a coluna de data. Ela nao precisa ter hora."
+            );
             return;
         }
 
@@ -163,18 +189,8 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
             // e simplesmente nao seleciona o que o usuario espera.
             this.mostrarAviso(
                 "A coluna precisa ser do tipo Data. Esta e do tipo "
-                + this.nomeDoTipo(tipo) + ", entao a comparacao de intervalo "
-                + "nao funciona. Converta a coluna para Data no Power Query."
-            );
-            return;
-        }
-
-        this.alvoFiltro = this.montarAlvo(categoria.source);
-
-        if (!this.alvoFiltro) {
-            this.mostrarAviso(
-                "Este campo veio como hierarquia de data. Clique na seta dele no "
-                + "painel de campos e escolha a coluna de data em vez da hierarquia."
+                + this.nomeDoTipo(tipo) + ". Data sem hora serve; o que nao serve "
+                + "e texto ou numero. Converta a coluna para Data no Power Query."
             );
             return;
         }
@@ -187,7 +203,6 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
             this.restaurarDoFiltro(options);
         }
 
-        this.aplicarEstilo(options.viewport.height);
         this.desenharChips();
     }
 
@@ -343,6 +358,7 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
         const escala = Math.max(50, Math.min(ap.tamanho.value, 250)) / 100;
         estilo.setProperty("--pad-v", (6 * escala).toFixed(1) + "px");
         estilo.setProperty("--pad-h", (13 * escala).toFixed(1) + "px");
+        estilo.setProperty("--gap", Math.max(0, Math.min(ap.espacamento.value, 30)) + "px");
 
         estilo.setProperty(
             "--cor-fundo",
