@@ -38,6 +38,69 @@
   * { box-sizing: border-box; }
 }
 
+/* modo linha: chips que quebram na horizontal, igual ao Seletor de Data */
+.faixa {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: var(--alinhamento);
+  align-items: center;
+  gap: 6px;
+  align-content: center;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.filtro-hierarquia.modo-linha {
+  justify-content: center;
+}
+
+/*
+  Contorno com outline, nao box-shadow: .chip:hover tem especificidade maior
+  e vem depois no arquivo, entao apagaria um contorno feito com box-shadow
+  justamente enquanto o mouse esta em cima.
+*/
+.chip-filho {
+  background: transparent;
+  outline: 1px solid currentColor;
+  outline-offset: -1px;
+  opacity: .78;
+
+  &.ativo {
+    background: var(--cor-destaque);
+    color: #FFFFFF;
+    outline: none;
+    opacity: 1;
+  }
+}
+
+/* o chip pai agora e um span com dois botoes dentro */
+.chip-pai {
+  gap: 4px;
+
+  .rotulo, .caret {
+    appearance: none;
+    border: 0;
+    background: none;
+    color: inherit;
+    font: inherit;
+    cursor: pointer;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .caret {
+    width: 12px;
+    height: 12px;
+    flex: 0 0 auto;
+  }
+}
+
+.chip-pai.parcial {
+  box-shadow: inset 0 0 0 2px var(--cor-destaque);
+}
+
 .linha-botao {
   display: flex;
   justify-content: var(--alinhamento);
@@ -129,7 +192,7 @@
   font-family: inherit;
   font-size: inherit;
   color: var(--cor-texto);
-  padding: 4px 8px;
+  padding: calc(var(--pad-v) * .7) calc(var(--pad-h) * .6);
   border: 1px solid #D2D0CE;
   border-radius: calc(var(--raio) / 2);
 
@@ -144,7 +207,7 @@
   border: 0;
   cursor: pointer;
   flex: 0 0 auto;
-  padding: 4px 9px;
+  padding: calc(var(--pad-v) * .7) calc(var(--pad-h) * .7);
   border-radius: calc(var(--raio) / 2);
   background: var(--cor-chip);
   color: var(--cor-texto);
@@ -228,6 +291,7 @@
 }
 
 .filtro-hierarquia.vazio .linha-botao,
+.filtro-hierarquia.vazio .faixa,
 .filtro-hierarquia.vazio .painel {
   display: none;
 }

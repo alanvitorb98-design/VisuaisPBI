@@ -152,8 +152,15 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
             && dataView.categorical.categories
             && dataView.categorical.categories[0];
 
-        if (!categoria || !categoria.values || !categoria.values.length) {
+        if (!categoria) {
             this.mostrarVazio(true);
+            return;
+        }
+
+        if (!categoria.values || !categoria.values.length) {
+            // o campo esta la; quem esvaziou foi outro filtro da pagina.
+            // Preserva o intervalo escolhido para ele voltar com as linhas.
+            this.semLinhas();
             return;
         }
         this.mostrarVazio(false);
@@ -169,7 +176,14 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
         const valores = dataView.categorical.values;
         const ordens = (valores && valores[0] && valores[0].values) || [];
 
-        this.pontos = categoria.values.map((valor, indiceOriginal) => {
+        // PrimitiveValueType do powerbi-models e string | number | boolean:
+        // nao ha valor de filtro que represente branco, e um ponto para branco
+        // geraria In ["null"], que nunca casa com o branco real.
+        const naoBrancos = categoria.values
+            .map((valor, i) => ({ valor: valor, i: i }))
+            .filter(par => par.valor !== null && par.valor !== undefined && par.valor !== "");
+
+        this.pontos = naoBrancos.map(({ valor, i: indiceOriginal }) => {
             const nome = String(valor);
             const bruto = ordens[indiceOriginal];
             return <Ponto>{
@@ -367,6 +381,34 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
         this.aviso
             .style("display", vazio ? null : "none")
             .text(texto || "Arraste o campo Refeicao para o visual");
+
+        if (!vazio) {
+            return;
+        }
+
+        // Sem esta limpeza o visual continuaria mostrando os pontos da carga
+        // anterior depois que o campo sai do painel de dados: os elementos
+        // persistem entre updates e o data join so os remove se receber [].
+        this.pontos = [];
+        this.chaveInicio = null;
+        this.chaveFim = null;
+        this.iInicio = 0;
+        this.iFim = 0;
+        this.alvoFiltro = null;
+
+        this.camadaMarcas.selectAll("circle.marca").remove();
+        this.camadaRotulos.selectAll("text.rotulo").remove();
+    }
+
+    /** Campo presente, porem sem linhas: nao mexe no intervalo do usuario. */
+    private semLinhas(): void {
+        this.svg.classed("vazio", true);
+        this.aviso
+            .style("display", null)
+            .text("Nenhuma linha para os filtros atuais");
+
+        this.camadaMarcas.selectAll("circle.marca").remove();
+        this.camadaRotulos.selectAll("text.rotulo").remove();
     }
 
     private desenharEstrutura(): void {

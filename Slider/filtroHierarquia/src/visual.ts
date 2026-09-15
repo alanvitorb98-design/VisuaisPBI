@@ -40,6 +40,8 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
     private config: ConfiguracoesVisual;
 
     private raiz: HTMLElement;
+    private faixa: HTMLElement;
+    private linhaBotao: HTMLElement;
     private botao: HTMLButtonElement;
     private rotuloBotao: HTMLElement;
     private contagem: HTMLElement;
@@ -68,15 +70,19 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
         this.raiz.className = "filtro-hierarquia";
         options.element.appendChild(this.raiz);
 
-        const linha = document.createElement("div");
-        linha.className = "linha-botao";
-        this.raiz.appendChild(linha);
+        this.faixa = document.createElement("div");
+        this.faixa.className = "faixa";
+        this.raiz.appendChild(this.faixa);
+
+        this.linhaBotao = document.createElement("div");
+        this.linhaBotao.className = "linha-botao";
+        this.raiz.appendChild(this.linhaBotao);
 
         this.botao = document.createElement("button");
         this.botao.type = "button";
         this.botao.className = "chip";
         this.botao.addEventListener("click", () => this.alternarPainel());
-        linha.appendChild(this.botao);
+        this.linhaBotao.appendChild(this.botao);
 
         this.rotuloBotao = document.createElement("span");
         this.botao.appendChild(this.rotuloBotao);
@@ -145,9 +151,15 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
 
         const cat1 = categorias && categorias[0];
 
-        if (!cat1 || !cat1.values || !cat1.values.length) {
-            this.aviso.hidden = false;
-            this.raiz.classList.add("vazio");
+        if (!cat1) {
+            this.semCampo("Arraste um campo para Nível 1");
+            return;
+        }
+
+        if (!cat1.values || !cat1.values.length) {
+            // o campo esta la; quem esvaziou foi outro filtro da pagina.
+            // Preserva a selecao para ela voltar quando as linhas voltarem.
+            this.semLinhas();
             return;
         }
 
@@ -161,10 +173,8 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
         this.alvo2 = cat2 ? this.montarAlvo(cat2.source) : null;
 
         if (!this.alvo1 || (this.temNivel2 && !this.alvo2)) {
-            this.aviso.textContent = "Um dos campos veio como hierarquia. Clique na seta dele "
-                + "no painel de campos e escolha a coluna em vez da hierarquia.";
-            this.aviso.hidden = false;
-            this.raiz.classList.add("vazio");
+            this.semCampo("Um dos campos veio como hierarquia. Clique na seta dele no "
+                + "painel de campos e escolha a coluna em vez da hierarquia.");
             return;
         }
 
@@ -176,12 +186,146 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
         }
 
         this.aplicarEstilo(options.viewport.height);
-        this.desenharBotao();
-        this.desenharArvore();
+        this.desenharTudo();
     }
 
     public getFormattingModel(): powerbi.visuals.FormattingModel {
         return this.servicoFormatacao.buildFormattingModel(this.config);
+    }
+
+    private get emLinha(): boolean {
+        return this.config.painel.orientacao.value.value === "linha";
+    }
+
+    private chavesDo(pai: Pai): string[] {
+        return this.temNivel2 ? pai.filhos.map(f => f.chave) : [pai.nome];
+    }
+
+    /** Escolhe o modo e redesenha so o que aquele modo usa. */
+    private desenharTudo(): void {
+        if (this.emLinha) {
+            this.linhaBotao.hidden = true;
+            this.painel.hidden = true;
+            this.faixa.hidden = false;
+            this.desenharFaixa();
+            return;
+        }
+
+        this.faixa.hidden = true;
+        this.linhaBotao.hidden = false;
+        this.painel.hidden = !this.aberto;
+        this.desenharBotao();
+        this.desenharArvore();
+    }
+
+    /**
+     * Chips na horizontal, quebrando conforme a largura. Os filhos entram
+     * logo depois do proprio pai, para a hierarquia continuar legivel sem
+     * precisar de recuo vertical - e sem nada suspenso, que o Power BI
+     * recortaria nas bordas do visual.
+     */
+    private desenharFaixa(): void {
+        this.faixa.textContent = "";
+
+        for (const pai of this.arvoreDados) {
+            const chaves = this.chavesDo(pai);
+            const marcadas = chaves.filter(c => this.marcadas[c]).length;
+            const todas = marcadas === chaves.length && chaves.length > 0;
+            const parcial = marcadas > 0 && !todas;
+
+            // Dois botoes irmaos dentro de um span, nao um botao dentro de
+            // outro: botao aninhado e HTML invalido e deixava o caret fora da
+            // ordem de tabulacao, tornando os filhos inalcancaveis por teclado.
+            const chip = document.createElement("span");
+            chip.className = "chip chip-pai";
+            chip.classList.toggle("ativo", todas);
+            chip.classList.toggle("parcial", parcial);
+
+            if (this.temNivel2) {
+                const caret = document.createElement("button");
+                caret.type = "button";
+                caret.className = "caret";
+                caret.classList.toggle("aberto", !!this.expandidos[pai.nome]);
+                caret.setAttribute("aria-expanded", String(!!this.expandidos[pai.nome]));
+                caret.setAttribute("aria-label", "Expandir " + pai.nome);
+                caret.addEventListener("click", () => {
+                    this.expandidos[pai.nome] = !this.expandidos[pai.nome];
+                    this.desenharFaixa();
+                });
+                chip.appendChild(caret);
+            }
+
+            const rotulo = document.createElement("button");
+            rotulo.type = "button";
+            rotulo.className = "rotulo";
+            rotulo.setAttribute("aria-pressed", String(todas));
+            rotulo.textContent = pai.nome;
+
+            if (parcial && this.config.botao.mostrarContagem.value) {
+                const conta = document.createElement("span");
+                conta.className = "contagem";
+                conta.textContent = marcadas + "/" + chaves.length;
+                rotulo.appendChild(conta);
+            }
+
+            rotulo.addEventListener("click", () => {
+                const novo = !todas;
+                chaves.forEach(c => { this.marcadas[c] = novo; });
+                this.aposMudanca();
+            });
+
+            chip.appendChild(rotulo);
+            this.faixa.appendChild(chip);
+
+            if (this.temNivel2 && this.expandidos[pai.nome]) {
+                pai.filhos.forEach(filho => this.faixa.appendChild(this.chipFilho(filho)));
+            }
+        }
+
+        this.faixa.appendChild(this.criarAcao("Tudo", () => this.marcarTodas(true)));
+        this.faixa.appendChild(this.criarAcao("Limpar", () => this.marcarTodas(false)));
+    }
+
+    private chipFilho(filho: Filho): HTMLElement {
+        const chip = document.createElement("button");
+        chip.type = "button";
+        chip.className = "chip chip-filho";
+        chip.textContent = filho.nome;
+        chip.classList.toggle("ativo", !!this.marcadas[filho.chave]);
+        chip.addEventListener("click", () => {
+            this.marcadas[filho.chave] = !this.marcadas[filho.chave];
+            this.aposMudanca();
+        });
+        return chip;
+    }
+
+    /** Campo presente, porem sem linhas: nao mexe na selecao do usuario. */
+    private semLinhas(): void {
+        this.aviso.textContent = "Nenhuma linha para os filtros atuais";
+        this.aviso.hidden = false;
+        this.raiz.classList.add("vazio");
+        this.faixa.textContent = "";
+        this.arvore.textContent = "";
+    }
+
+    /**
+     * Campo ausente ou inutilizavel. Zera o estado, senao os chips da carga
+     * anterior continuariam na tela depois de tirar o campo do painel de
+     * dados - e readicionar o campo reaproveitaria a selecao velha.
+     */
+    private semCampo(texto: string): void {
+        this.aviso.textContent = texto;
+        this.aviso.hidden = false;
+        this.raiz.classList.add("vazio");
+
+        this.arvoreDados = [];
+        this.marcadas = {};
+        this.expandidos = {};
+        this.alvo1 = null;
+        this.alvo2 = null;
+        this.restaurado = false;
+        this.faixa.textContent = "";
+        this.arvore.textContent = "";
     }
 
     // ------------------------------------------------------------------
@@ -213,11 +357,25 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
      * As duas categorias vem alinhadas linha a linha, com repeticao.
      * Agrupa por nivel 1 e remove filhos duplicados.
      */
+    /**
+     * PrimitiveValueType do powerbi-models e string | number | boolean: nao
+     * existe valor de filtro que represente branco. Um chip para branco
+     * geraria a condicao In ["null"], que nunca casa com o branco real,
+     * entao essas linhas ficam de fora da lista.
+     */
+    private emBranco(valor: powerbi.PrimitiveValue): boolean {
+        return valor === null || valor === undefined || valor === "";
+    }
+
     private montarArvore(valores1: powerbi.PrimitiveValue[], valores2: powerbi.PrimitiveValue[]): void {
         const indice: Record<string, Pai> = {};
         const ordem: string[] = [];
 
         valores1.forEach((bruto, i) => {
+            if (this.emBranco(bruto) || (valores2 && this.emBranco(valores2[i]))) {
+                return;
+            }
+
             const nomePai = String(bruto);
 
             if (!indice[nomePai]) {
@@ -355,7 +513,11 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
 
         // o Power BI recorta o visual nas proprias bordas: o painel nao vaza
         // para fora, entao avisamos quando nao ha altura para abri-lo
-        this.raiz.classList.toggle("sem-espaco", altura < 150);
+        this.raiz.classList.toggle("modo-linha", this.emLinha);
+
+        // so o modo painel precisa de altura: o Power BI recorta o visual nas
+        // proprias bordas, entao a arvore suspensa nao tem para onde vazar
+        this.raiz.classList.toggle("sem-espaco", !this.emLinha && altura < 150);
     }
 
     private desenharBotao(): void {
@@ -427,7 +589,7 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
             linha.appendChild(caret);
         }
 
-        const chaves = this.temNivel2 ? pai.filhos.map(f => f.chave) : [pai.nome];
+        const chaves = this.chavesDo(pai);
         const marcadas = chaves.filter(c => this.marcadas[c]).length;
 
         const caixa = document.createElement("input");
@@ -484,8 +646,7 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
     }
 
     private aposMudanca(): void {
-        this.desenharBotao();
-        this.desenharArvore();
+        this.desenharTudo();
         this.aplicarFiltro();
     }
 }

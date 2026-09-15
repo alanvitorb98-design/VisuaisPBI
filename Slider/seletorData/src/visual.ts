@@ -166,6 +166,14 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
         this.aviso.hidden = false;
         this.barra.hidden = true;
         this.faixaLivre.hidden = true;
+
+        // zera o estado para que readicionar o campo volte a ler o filtro do
+        // relatorio, em vez de reaproveitar o periodo da carga anterior
+        this.barra.textContent = "";
+        this.alvoFiltro = null;
+        this.periodo = null;
+        this.livre = null;
+        this.restaurado = false;
     }
 
     // ------------------------------------------------------------------

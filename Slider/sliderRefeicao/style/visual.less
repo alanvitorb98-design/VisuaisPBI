@@ -177,3 +177,14 @@ svg.sem-animacao .alca {
     animation: none !important;
   }
 }
+
+/*
+  Sem dados: esconde tudo que e desenhado uma vez no construtor e sobrevive
+  entre updates. Sem isso o trilho e as alcas ficariam na tela depois de
+  tirar o campo do painel de dados.
+*/
+svg.vazio {
+  .trilho, .trilho-ativo, .alca, .limpar {
+    display: none;
+  }
+}

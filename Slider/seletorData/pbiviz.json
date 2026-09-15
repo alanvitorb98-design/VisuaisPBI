@@ -4,7 +4,7 @@
         "displayName": "Seletor de Data",
         "guid": "seletorData351F29E41F5449C08A99285724F7C8CF",
         "visualClassName": "Visual",
-        "version": "1.0.1.0",
+        "version": "1.0.2.0",
         "description": "Barra compacta de períodos (Hoje, 7 dias, 30 dias, Mês, Ano, Tudo) mais intervalo personalizado. Filtra o relatório pela coluna de data escolhida. Feita para ocupar pouca altura no topo do dashboard.",
         "supportUrl": "https://github.com/alanvitorb98-design/VisuaisPBI/issues",
         "gitHubUrl": "https://github.com/alanvitorb98-design/VisuaisPBI"
@@ -22,5 +22,5 @@
     "capabilities": "capabilities.json",
     "dependencies": null,
     "stringResources": [],
-    "version": "1.0.1.0"
+    "version": "1.0.2.0"
 }

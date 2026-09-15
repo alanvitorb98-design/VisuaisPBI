@@ -37,6 +37,16 @@ class CartaoBotao extends FormattingSettingsCard {
 }
 
 class CartaoPainel extends FormattingSettingsCard {
+    orientacao = new formattingSettings.ItemDropdown({
+        name: "orientacao",
+        displayName: "Orientação",
+        items: [
+            { value: "linha", displayName: "Linha (chips)" },
+            { value: "painel", displayName: "Painel suspenso" }
+        ],
+        value: { value: "linha", displayName: "Linha (chips)" }
+    });
+
     mostrarBusca = new formattingSettings.ToggleSwitch({
         name: "mostrarBusca",
         displayName: "Mostrar busca",
@@ -50,8 +60,10 @@ class CartaoPainel extends FormattingSettingsCard {
     });
 
     name: string = "painel";
-    displayName: string = "Painel";
-    slices: Array<FormattingSettingsSlice> = [this.mostrarBusca, this.expandirTudo];
+    displayName: string = "Layout";
+    slices: Array<FormattingSettingsSlice> = [
+        this.orientacao, this.mostrarBusca, this.expandirTudo
+    ];
 }
 
 class CartaoAparencia extends FormattingSettingsCard {

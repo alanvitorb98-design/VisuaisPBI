@@ -83,7 +83,7 @@
       }
     },
     "painel": {
-      "displayName": "Painel",
+      "displayName": "Layout",
       "properties": {
         "mostrarBusca": {
           "displayName": "Mostrar busca",
@@ -95,6 +95,21 @@
           "displayName": "Começar expandido",
           "type": {
             "bool": true
+          }
+        },
+        "orientacao": {
+          "displayName": "Orientação",
+          "type": {
+            "enumeration": [
+              {
+                "value": "linha",
+                "displayName": "Linha (chips)"
+              },
+              {
+                "value": "painel",
+                "displayName": "Painel suspenso"
+              }
+            ]
           }
         }
       }
