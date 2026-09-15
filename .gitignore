@@ -1,0 +1,10 @@
+# Testes ficam locais por decisao do projeto (ver PENDENCIAS.md secao 5):
+# nao viajam entre maquinas e nao protegem quem clonar o repo.
+test/
+tests/
+__tests__/
+*.test.ts
+*.test.js
+*.spec.ts
+*.spec.js
+coverage/
