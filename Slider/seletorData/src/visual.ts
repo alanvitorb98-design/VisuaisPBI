@@ -1,0 +1,343 @@
+"use strict";
+
+import powerbi from "powerbi-visuals-api";
+import IVisualHost = powerbi.extensibility.visual.IVisualHost;
+import VisualConstructorOptions = powerbi.extensibility.visual.VisualConstructorOptions;
+import VisualUpdateOptions = powerbi.extensibility.visual.VisualUpdateOptions;
+
+import { FormattingSettingsService } from "powerbi-visuals-utils-formattingmodel";
+import { AdvancedFilter, IAdvancedFilter, IFilterColumnTarget } from "powerbi-models";
+
+import { ConfiguracoesVisual } from "./settings";
+import "../style/visual.less";
+
+const OBJETO_FILTRO = "geral";
+const PROP_FILTRO = "filtro";
+
+/** Identificador de cada chip. "livre" e o intervalo digitado a mao. */
+type Periodo = "hoje" | "sete" | "trinta" | "mes" | "ano" | "tudo" | "livre";
+
+interface Intervalo {
+    de: Date;
+    ate: Date;
+}
+
+function inicioDoDia(base: Date): Date {
+    return new Date(base.getFullYear(), base.getMonth(), base.getDate(), 0, 0, 0, 0);
+}
+
+function fimDoDia(base: Date): Date {
+    return new Date(base.getFullYear(), base.getMonth(), base.getDate(), 23, 59, 59, 999);
+}
+
+function somarDias(base: Date, dias: number): Date {
+    const copia = new Date(base.getTime());
+    copia.setDate(copia.getDate() + dias);
+    return copia;
+}
+
+/** "2026-09-15", no fuso local - toISOString converteria para UTC e podia pular um dia. */
+function paraCampo(data: Date): string {
+    const mes = String(data.getMonth() + 1).padStart(2, "0");
+    const dia = String(data.getDate()).padStart(2, "0");
+    return data.getFullYear() + "-" + mes + "-" + dia;
+}
+
+function doCampo(texto: string): Date {
+    const partes = texto.split("-").map(Number);
+    if (partes.length !== 3 || partes.some(isNaN)) {
+        return null;
+    }
+    return new Date(partes[0], partes[1] - 1, partes[2]);
+}
+
+function mesmoDia(a: Date, b: Date): boolean {
+    return a.getFullYear() === b.getFullYear()
+        && a.getMonth() === b.getMonth()
+        && a.getDate() === b.getDate();
+}
+
+export class Visual implements powerbi.extensibility.visual.IVisual {
+    private host: IVisualHost;
+    private servicoFormatacao: FormattingSettingsService;
+    private config: ConfiguracoesVisual;
+
+    private raiz: HTMLElement;
+    private barra: HTMLElement;
+    private faixaLivre: HTMLElement;
+    private campoDe: HTMLInputElement;
+    private campoAte: HTMLInputElement;
+    private aviso: HTMLElement;
+
+    private alvoFiltro: IFilterColumnTarget = null;
+    private periodo: Periodo = null;
+    private livre: Intervalo = null;
+    private restaurado = false;
+
+    constructor(options: VisualConstructorOptions) {
+        this.host = options.host;
+        this.servicoFormatacao = new FormattingSettingsService();
+
+        this.raiz = document.createElement("div");
+        this.raiz.className = "seletor-data";
+        options.element.appendChild(this.raiz);
+
+        this.barra = document.createElement("div");
+        this.barra.className = "barra";
+        this.raiz.appendChild(this.barra);
+
+        this.faixaLivre = document.createElement("div");
+        this.faixaLivre.className = "faixa-livre";
+        this.faixaLivre.hidden = true;
+        this.raiz.appendChild(this.faixaLivre);
+
+        this.campoDe = this.criarCampo("De");
+        this.campoAte = this.criarCampo("Até");
+
+        this.aviso = document.createElement("div");
+        this.aviso.className = "aviso";
+        this.aviso.textContent = "Arraste o campo Data para o visual";
+        this.aviso.hidden = true;
+        this.raiz.appendChild(this.aviso);
+    }
+
+    private criarCampo(rotulo: string): HTMLInputElement {
+        const caixa = document.createElement("label");
+        caixa.className = "campo";
+
+        const texto = document.createElement("span");
+        texto.textContent = rotulo;
+        caixa.appendChild(texto);
+
+        const campo = document.createElement("input");
+        campo.type = "date";
+        campo.addEventListener("change", () => this.aplicarLivre());
+        caixa.appendChild(campo);
+
+        this.faixaLivre.appendChild(caixa);
+        return campo;
+    }
+
+    public update(options: VisualUpdateOptions): void {
+        const dataView = options.dataViews && options.dataViews[0];
+        this.config = this.servicoFormatacao.populateFormattingSettingsModel(
+            ConfiguracoesVisual,
+            dataView
+        );
+
+        const categoria = dataView
+            && dataView.categorical
+            && dataView.categorical.categories
+            && dataView.categorical.categories[0];
+
+        if (!categoria) {
+            this.aviso.hidden = false;
+            this.barra.hidden = true;
+            this.faixaLivre.hidden = true;
+            return;
+        }
+
+        this.aviso.hidden = true;
+        this.barra.hidden = false;
+        this.alvoFiltro = this.montarAlvo(categoria.source);
+
+        if (!this.restaurado) {
+            this.restaurado = true;
+            this.restaurarDoFiltro(options);
+        }
+
+        this.aplicarEstilo(options.viewport.height);
+        this.desenharChips();
+    }
+
+    public getFormattingModel(): powerbi.visuals.FormattingModel {
+        return this.servicoFormatacao.buildFormattingModel(this.config);
+    }
+
+    // ------------------------------------------------------------------
+    // filtro
+    // ------------------------------------------------------------------
+
+    private montarAlvo(fonte: powerbi.DataViewMetadataColumn): IFilterColumnTarget {
+        const consulta = fonte.queryName || "";
+        const ponto = consulta.indexOf(".");
+        return {
+            table: ponto > 0 ? consulta.substring(0, ponto) : consulta,
+            column: fonte.displayName
+        };
+    }
+
+    /**
+     * Le o filtro que ja esta no relatorio e descobre qual chip corresponde.
+     * Sem isso, reabrir o relatorio mostraria nenhum chip aceso enquanto os
+     * dados continuam filtrados.
+     */
+    private restaurarDoFiltro(options: VisualUpdateOptions): void {
+        const filtros = options.jsonFilters;
+        const filtro = (filtros && filtros.length ? filtros[0] : null) as IAdvancedFilter;
+
+        if (!filtro || !filtro.conditions || filtro.conditions.length < 2) {
+            this.periodo = this.config.periodos.padrao.value.value as Periodo;
+            return;
+        }
+
+        const valores = filtro.conditions.map(c => new Date(String(c.value)));
+        const de = inicioDoDia(valores[0]);
+        const ate = inicioDoDia(valores[1]);
+
+        this.livre = { de: de, ate: ate };
+        this.periodo = this.reconhecer(de, ate);
+    }
+
+    /** Compara o intervalo vindo do relatorio com cada preset. */
+    private reconhecer(de: Date, ate: Date): Periodo {
+        const candidatos: Periodo[] = ["hoje", "sete", "trinta", "mes", "ano"];
+        for (const nome of candidatos) {
+            const faixa = this.calcular(nome);
+            if (faixa && mesmoDia(faixa.de, de) && mesmoDia(faixa.ate, ate)) {
+                return nome;
+            }
+        }
+        return "livre";
+    }
+
+    /** Todos os presets sao relativos a hoje, entao nao precisam varrer a coluna. */
+    private calcular(periodo: Periodo): Intervalo {
+        const hoje = inicioDoDia(new Date());
+
+        switch (periodo) {
+            case "hoje":
+                return { de: hoje, ate: hoje };
+            case "sete":
+                return { de: somarDias(hoje, -6), ate: hoje };
+            case "trinta":
+                return { de: somarDias(hoje, -29), ate: hoje };
+            case "mes":
+                return { de: new Date(hoje.getFullYear(), hoje.getMonth(), 1), ate: hoje };
+            case "ano":
+                return { de: new Date(hoje.getFullYear(), 0, 1), ate: hoje };
+            default:
+                return null;
+        }
+    }
+
+    private aplicarFiltro(intervalo: Intervalo): void {
+        if (!this.alvoFiltro) {
+            return;
+        }
+
+        if (!intervalo) {
+            this.host.applyJsonFilter(null, OBJETO_FILTRO, PROP_FILTRO, powerbi.FilterAction.remove);
+            return;
+        }
+
+        // o fim vai para 23:59:59.999, senao o ultimo dia do intervalo fica de fora
+        const filtro = new AdvancedFilter(
+            this.alvoFiltro,
+            "And",
+            { operator: "GreaterThanOrEqual", value: inicioDoDia(intervalo.de).toISOString() },
+            { operator: "LessThanOrEqual", value: fimDoDia(intervalo.ate).toISOString() }
+        );
+
+        this.host.applyJsonFilter(filtro, OBJETO_FILTRO, PROP_FILTRO, powerbi.FilterAction.merge);
+    }
+
+    // ------------------------------------------------------------------
+    // interface
+    // ------------------------------------------------------------------
+
+    private aplicarEstilo(altura: number): void {
+        const ap = this.config.aparencia;
+        const estilo = this.raiz.style;
+
+        estilo.setProperty("--cor-destaque", ap.corDestaque.value.value);
+        estilo.setProperty("--cor-chip", ap.corChip.value.value);
+        estilo.setProperty("--cor-texto", ap.corTexto.value.value);
+        estilo.setProperty("--raio", Math.max(0, Math.min(ap.raio.value, 40)) + "px");
+        estilo.setProperty("--alinhamento", ap.alinhamento.value.value as string);
+        estilo.setProperty("--fonte", ap.fonte.fontFamily.value);
+        estilo.setProperty("--tamanho", Math.max(6, Math.min(ap.fonte.fontSize.value, 32)) + "px");
+        estilo.setProperty("--peso", ap.fonte.bold.value ? "600" : "400");
+        estilo.setProperty("--italico", ap.fonte.italic.value ? "italic" : "normal");
+        estilo.setProperty("--sublinhado", ap.fonte.underline.value ? "underline" : "none");
+
+        // em visual muito baixo a faixa de datas nao cabe junto com os chips
+        this.raiz.classList.toggle("apertado", altura < 86);
+    }
+
+    private desenharChips(): void {
+        const cfg = this.config.periodos;
+        const definicoes: { id: Periodo; texto: string; ligado: boolean }[] = [
+            { id: "hoje", texto: "Hoje", ligado: cfg.hoje.value },
+            { id: "sete", texto: "7 dias", ligado: cfg.sete.value },
+            { id: "trinta", texto: "30 dias", ligado: cfg.trinta.value },
+            { id: "mes", texto: "Mês", ligado: cfg.mes.value },
+            { id: "ano", texto: "Ano", ligado: cfg.ano.value },
+            { id: "tudo", texto: "Tudo", ligado: cfg.tudo.value },
+            { id: "livre", texto: "Personalizado", ligado: cfg.personalizado.value }
+        ];
+
+        this.barra.textContent = "";
+
+        for (const def of definicoes) {
+            if (!def.ligado) {
+                continue;
+            }
+
+            const chip = document.createElement("button");
+            chip.type = "button";
+            chip.className = "chip";
+            chip.textContent = def.texto;
+            chip.classList.toggle("ativo", this.periodo === def.id);
+            chip.addEventListener("click", () => this.escolher(def.id));
+            this.barra.appendChild(chip);
+        }
+
+        const mostrarCampos = this.periodo === "livre" && cfg.personalizado.value;
+        this.faixaLivre.hidden = !mostrarCampos;
+
+        if (mostrarCampos && this.livre) {
+            this.campoDe.value = paraCampo(this.livre.de);
+            this.campoAte.value = paraCampo(this.livre.ate);
+        }
+    }
+
+    private escolher(periodo: Periodo): void {
+        this.periodo = periodo;
+
+        if (periodo === "tudo") {
+            this.livre = null;
+            this.aplicarFiltro(null);
+        } else if (periodo === "livre") {
+            // abre os campos ja preenchidos com algo plausivel
+            if (!this.livre) {
+                const hoje = inicioDoDia(new Date());
+                this.livre = { de: somarDias(hoje, -29), ate: hoje };
+            }
+            this.aplicarFiltro(this.livre);
+        } else {
+            this.livre = this.calcular(periodo);
+            this.aplicarFiltro(this.livre);
+        }
+
+        this.desenharChips();
+    }
+
+    private aplicarLivre(): void {
+        const de = doCampo(this.campoDe.value);
+        const ate = doCampo(this.campoAte.value);
+
+        if (!de || !ate) {
+            return;
+        }
+
+        // datas invertidas: troca em vez de aplicar um intervalo vazio
+        this.livre = de.getTime() <= ate.getTime()
+            ? { de: de, ate: ate }
+            : { de: ate, ate: de };
+
+        this.periodo = "livre";
+        this.aplicarFiltro(this.livre);
+        this.desenharChips();
+    }
+}

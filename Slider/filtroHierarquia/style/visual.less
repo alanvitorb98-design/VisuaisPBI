@@ -1,0 +1,242 @@
+/* ========================================================
+   Filtro de Hierarquia (dois niveis)
+   Mesma linguagem do Slider Refeicao e do Seletor de Data:
+   superficie clara, sombra suave, cantos arredondados.
+   ======================================================== */
+
+@dur-curta: .16s;
+
+.filtro-hierarquia {
+  --cor-destaque: #E07A5F;
+  --cor-chip: #F3F2F1;
+  --cor-texto: #323130;
+  --raio: 16px;
+  --alinhamento: center;
+  --fonte: "Segoe UI", wf_standard-font, helvetica, arial, sans-serif;
+  --tamanho: 12px;
+  --peso: 400;
+  --italico: normal;
+  --sublinhado: none;
+
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 4px 6px;
+  overflow: hidden;
+
+  font-family: var(--fonte);
+  font-size: var(--tamanho);
+  color: var(--cor-texto);
+
+  * { box-sizing: border-box; }
+}
+
+.linha-botao {
+  display: flex;
+  justify-content: var(--alinhamento);
+  flex: 0 0 auto;
+}
+
+.chip {
+  appearance: none;
+  border: 0;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 13px;
+  border-radius: var(--raio);
+  background: var(--cor-chip);
+  color: var(--cor-texto);
+
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: var(--peso);
+  font-style: var(--italico);
+  text-decoration: var(--sublinhado);
+  line-height: 1.25;
+  white-space: nowrap;
+
+  transition: background @dur-curta ease, color @dur-curta ease;
+
+  &:hover { box-shadow: inset 0 0 0 999px rgba(0, 0, 0, .05); }
+
+  &:focus-visible {
+    outline: 2px solid var(--cor-destaque);
+    outline-offset: 2px;
+  }
+
+  &.ativo {
+    background: var(--cor-destaque);
+    color: #FFFFFF;
+    font-weight: 600;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, .18);
+  }
+}
+
+.contagem {
+  display: inline-block;
+  min-width: 18px;
+  padding: 0 5px;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, .28);
+  text-align: center;
+  font-weight: 600;
+}
+
+.chip:not(.ativo) .contagem {
+  background: rgba(0, 0, 0, .08);
+}
+
+.seta {
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 5px solid currentColor;
+  opacity: .7;
+}
+
+.painel {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  border-radius: calc(var(--raio) / 1.6);
+  background: #FFFFFF;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, .16);
+}
+
+.acoes {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+}
+
+.busca {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-family: inherit;
+  font-size: inherit;
+  color: var(--cor-texto);
+  padding: 4px 8px;
+  border: 1px solid #D2D0CE;
+  border-radius: calc(var(--raio) / 2);
+
+  &:focus {
+    outline: none;
+    border-color: var(--cor-destaque);
+  }
+}
+
+.acao {
+  appearance: none;
+  border: 0;
+  cursor: pointer;
+  flex: 0 0 auto;
+  padding: 4px 9px;
+  border-radius: calc(var(--raio) / 2);
+  background: var(--cor-chip);
+  color: var(--cor-texto);
+  font-family: inherit;
+  font-size: inherit;
+
+  &:hover { box-shadow: inset 0 0 0 999px rgba(0, 0, 0, .05); }
+}
+
+.arvore {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.linha {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 3px 2px;
+  border-radius: 4px;
+
+  &:hover { background: rgba(0, 0, 0, .04); }
+
+  input[type="checkbox"] {
+    flex: 0 0 auto;
+    accent-color: var(--cor-destaque);
+    cursor: pointer;
+    margin: 0;
+  }
+}
+
+.linha .nome {
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.linha.pai .nome { font-weight: 600; }
+
+.linha.filho {
+  padding-left: 26px;
+}
+
+.caret {
+  appearance: none;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  flex: 0 0 auto;
+  width: 14px;
+  height: 14px;
+  padding: 0;
+  position: relative;
+
+  &::before {
+    content: "";
+    position: absolute;
+    top: 3px;
+    left: 4px;
+    width: 0;
+    height: 0;
+    border-top: 4px solid transparent;
+    border-bottom: 4px solid transparent;
+    border-left: 5px solid var(--cor-texto);
+    opacity: .65;
+    transition: transform @dur-curta ease;
+    transform-origin: 2px 4px;
+  }
+
+  &.aberto::before { transform: rotate(90deg); }
+}
+
+.aviso {
+  text-align: center;
+  color: #605E5C;
+  font-size: 12px;
+  padding: 8px;
+}
+
+.filtro-hierarquia.vazio .linha-botao,
+.filtro-hierarquia.vazio .painel {
+  display: none;
+}
+
+/*
+  O Power BI recorta o visual nas proprias bordas, entao o painel nao pode
+  vazar para fora. Sem altura suficiente ele apareceria cortado; melhor
+  esconder e avisar no tooltip do botao.
+*/
+.filtro-hierarquia.sem-espaco .painel {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chip, .caret::before { transition: none; }
+}

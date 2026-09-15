@@ -1,0 +1,132 @@
+/* ========================================================
+   Seletor de Data
+   Mesma linguagem do Slider Refeicao: superficie clara,
+   sombra suave, cantos arredondados, Segoe UI.
+   Cores e fonte vem do painel Formatar via CSS custom properties.
+   ======================================================== */
+
+@dur-curta: .16s;
+
+.seletor-data {
+  --cor-destaque: #E07A5F;
+  --cor-chip: #F3F2F1;
+  --cor-texto: #323130;
+  --raio: 16px;
+  --alinhamento: center;
+  --fonte: "Segoe UI", wf_standard-font, helvetica, arial, sans-serif;
+  --tamanho: 12px;
+  --peso: 400;
+  --italico: normal;
+  --sublinhado: none;
+
+  box-sizing: border-box;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 7px;
+  padding: 4px 6px;
+  overflow: hidden;
+
+  font-family: var(--fonte);
+  font-size: var(--tamanho);
+  color: var(--cor-texto);
+
+  * { box-sizing: border-box; }
+}
+
+.barra {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: var(--alinhamento);
+  align-items: center;
+  gap: 6px;
+}
+
+.chip {
+  appearance: none;
+  border: 0;
+  cursor: pointer;
+  padding: 6px 13px;
+  border-radius: var(--raio);
+  background: var(--cor-chip);
+  color: var(--cor-texto);
+
+  font-family: inherit;
+  font-size: inherit;
+  font-weight: var(--peso);
+  font-style: var(--italico);
+  text-decoration: var(--sublinhado);
+  line-height: 1.25;
+  white-space: nowrap;
+
+  transition: background @dur-curta ease, color @dur-curta ease,
+              box-shadow @dur-curta ease, transform @dur-curta ease;
+
+  &:hover {
+    /* escurece o chip sem precisar de uma segunda cor no painel */
+    box-shadow: inset 0 0 0 999px rgba(0, 0, 0, .05);
+  }
+
+  &:active { transform: translateY(1px); }
+
+  &:focus-visible {
+    outline: 2px solid var(--cor-destaque);
+    outline-offset: 2px;
+  }
+
+  &.ativo {
+    background: var(--cor-destaque);
+    color: #FFFFFF;
+    font-weight: 600;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, .18);
+  }
+}
+
+.faixa-livre {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: var(--alinhamento);
+  align-items: center;
+  gap: 10px;
+}
+
+.campo {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--cor-texto);
+  opacity: .9;
+
+  input {
+    font-family: inherit;
+    font-size: inherit;
+    color: var(--cor-texto);
+    padding: 4px 8px;
+    border: 1px solid #D2D0CE;
+    border-radius: calc(var(--raio) / 2);
+    background: #FFFFFF;
+
+    &:focus {
+      outline: none;
+      border-color: var(--cor-destaque);
+      box-shadow: 0 0 0 2px rgba(0, 0, 0, .06);
+    }
+  }
+}
+
+/* visual baixo demais: os campos de data sairiam cortados */
+.seletor-data.apertado .faixa-livre {
+  display: none;
+}
+
+.aviso {
+  text-align: center;
+  color: #605E5C;
+  font-size: 12px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chip { transition: none; }
+}
