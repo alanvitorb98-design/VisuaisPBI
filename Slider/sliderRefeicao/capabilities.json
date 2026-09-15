@@ -134,6 +134,12 @@
               }
             }
           }
+        },
+        "tamanho": {
+          "displayName": "Tamanho geral (%)",
+          "type": {
+            "numeric": true
+          }
         }
       }
     },

@@ -17,16 +17,17 @@
   --peso: 400;
   --italico: normal;
   --sublinhado: none;
-  --pad-v: 6px;
-  --pad-h: 13px;
+  --pad-v: 7px;
+  --pad-h: 15px;
   --cor-fundo: transparent;
+  --gap: var(--gap);
 
   box-sizing: border-box;
   width: 100%;
   height: 100%;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--gap);
   padding: 4px 6px;
   overflow: hidden;
   background: var(--cor-fundo);
@@ -43,7 +44,7 @@
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 6px;
+  gap: var(--gap);
   min-height: 0;
 
   /* a busca acompanha o alinhamento dos chips e nao estica na linha toda */
@@ -60,7 +61,7 @@
   justify-content: var(--alinhamento);
   align-items: center;
   align-content: center;
-  gap: 6px;
+  gap: var(--gap);
   min-height: 0;
   overflow-y: auto;
 }
@@ -102,7 +103,7 @@
     padding: 0;
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: var(--gap);
   }
 
   .caret {
@@ -128,7 +129,7 @@
   cursor: pointer;
   display: inline-flex;
   align-items: center;
-  gap: 7px;
+  gap: var(--gap);
   padding: var(--pad-v) var(--pad-h);
   border-radius: var(--raio);
   background: var(--cor-chip);
@@ -187,7 +188,7 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--gap);
   padding: 8px;
   border-radius: calc(var(--raio) / 1.6);
   background: #FFFFFF;
@@ -197,7 +198,7 @@
 .acoes {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--gap);
   flex: 0 0 auto;
 }
 
@@ -242,7 +243,7 @@
 .linha {
   display: flex;
   align-items: center;
-  gap: 7px;
+  gap: var(--gap);
   padding: 3px 2px;
   border-radius: 4px;
 

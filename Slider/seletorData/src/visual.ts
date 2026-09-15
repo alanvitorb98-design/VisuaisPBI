@@ -370,30 +370,42 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
         const ap = this.config.aparencia;
         const estilo = this.raiz.style;
 
+        // Uma escala unica multiplica TODAS as medidas. Escalar so parte delas
+        // deixava o resultado desproporcional: pilula gorda com letra miuda,
+        // ou cantos e vaos encolhendo conforme o chip cresce.
+        const escala = Math.max(50, Math.min(ap.tamanho.value, 300)) / 100;
+        const fonteBase = Math.max(6, Math.min(ap.fonte.fontSize.value, 32));
+
         estilo.setProperty("--cor-destaque", ap.corDestaque.value.value);
         estilo.setProperty("--cor-chip", ap.corChip.value.value);
         estilo.setProperty("--cor-texto", ap.corTexto.value.value);
-        estilo.setProperty("--raio", Math.max(0, Math.min(ap.raio.value, 40)) + "px");
-        estilo.setProperty("--alinhamento", ap.alinhamento.value.value as string);
-
-        // o padding cresce junto com a fonte, senao so o texto aumentaria
-        const escala = Math.max(50, Math.min(ap.tamanho.value, 250)) / 100;
-        estilo.setProperty("--pad-v", (6 * escala).toFixed(1) + "px");
-        estilo.setProperty("--pad-h", (13 * escala).toFixed(1) + "px");
-        estilo.setProperty("--gap", Math.max(0, Math.min(ap.espacamento.value, 30)) + "px");
-
         estilo.setProperty(
             "--cor-fundo",
             ap.fundoTransparente.value ? "transparent" : ap.corFundo.value.value
         );
+
         estilo.setProperty("--fonte", ap.fonte.fontFamily.value);
-        estilo.setProperty("--tamanho", Math.max(6, Math.min(ap.fonte.fontSize.value, 32)) + "px");
         estilo.setProperty("--peso", ap.fonte.bold.value ? "600" : "400");
         estilo.setProperty("--italico", ap.fonte.italic.value ? "italic" : "normal");
         estilo.setProperty("--sublinhado", ap.fonte.underline.value ? "underline" : "none");
 
-        // em visual muito baixo a faixa de datas nao cabe junto com os chips
-        this.raiz.classList.toggle("apertado", altura < 86);
+        estilo.setProperty("--tamanho", (fonteBase * escala).toFixed(1) + "px");
+        estilo.setProperty("--pad-v", (7 * escala).toFixed(1) + "px");
+        estilo.setProperty("--pad-h", (15 * escala).toFixed(1) + "px");
+        estilo.setProperty(
+            "--raio",
+            (Math.max(0, Math.min(ap.raio.value, 40)) * escala).toFixed(1) + "px"
+        );
+        estilo.setProperty("--alinhamento", ap.alinhamento.value.value as string);
+        estilo.setProperty(
+            "--gap",
+            (Math.max(0, Math.min(ap.espacamento.value, 30)) * escala).toFixed(1) + "px"
+        );
+
+        // em visual muito baixo a faixa de datas nao cabe junto com os chips.
+        // O limite acompanha a escala: com os chips maiores, sobra menos
+        // altura para os campos de data.
+        this.raiz.classList.toggle("apertado", altura < 86 * escala);
     }
 
     private desenharChips(): void {

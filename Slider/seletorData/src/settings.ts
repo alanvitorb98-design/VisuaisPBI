@@ -86,7 +86,7 @@ class CartaoAparencia extends FormattingSettingsCard {
 
     tamanho = new formattingSettings.NumUpDown({
         name: "tamanho",
-        displayName: "Tamanho do chip (%)",
+        displayName: "Tamanho geral (%)",
         value: 100
     });
 

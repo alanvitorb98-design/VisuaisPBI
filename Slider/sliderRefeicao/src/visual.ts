@@ -31,6 +31,7 @@ interface Layout {
     corDestaque: string;
     corMarcador: string;
     escalaIcone: number;
+    escalaGeral: number;
     fonte: number;
     corRotulo: string;
     destacarRotulo: boolean;
@@ -326,11 +327,19 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
         const cfgRotulos = this.config.rotulos;
         const cfgIcone = this.config.icone;
 
-        const espessura = limitar(cfgSlider.espessuraTrilho.value, 1, 24);
-        const fonte = limitar(cfgRotulos.fonte.fontSize.value, 6, 40);
+        // Um percentual so escala o visual inteiro. Escalar apenas parte das
+        // medidas deixava o resultado desproporcional: alca grande com rotulo
+        // miudo, ou trilho grosso com icone pequeno.
+        const escalaGeral = limitar(cfgSlider.tamanho.value, 50, 300) / 100;
+
+        const espessura = limitar(cfgSlider.espessuraTrilho.value, 1, 24) * escalaGeral;
+        const fonte = limitar(cfgRotulos.fonte.fontSize.value, 6, 40) * escalaGeral;
         const mostrarRotulos = cfgRotulos.mostrar.value;
 
-        const raio = limitar(cfgSlider.raioAlca.value, 6, Math.max(6, altura * 0.42));
+        // o teto pela altura vem depois da escala: a alca pode crescer, mas
+        // nao ate empurrar o rotulo fora do visual
+        const raioPedido = limitar(cfgSlider.raioAlca.value, 6, 200) * escalaGeral;
+        const raio = limitar(raioPedido, 6, Math.max(6, altura * 0.42));
 
         const margem = Math.max(raio + 6, Math.min(largura * 0.14, 72));
         const esq = Math.min(margem, largura / 2);
@@ -349,6 +358,7 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
             corDestaque: cfgSlider.corDestaque.value.value,
             corMarcador: cfgSlider.corMarcador.value.value,
             escalaIcone: limitar(cfgIcone.escala.value, 40, 200) / 100,
+            escalaGeral: escalaGeral,
             fonte: fonte,
             corRotulo: cfgRotulos.cor.value.value,
             destacarRotulo: cfgRotulos.destacarSelecionado.value,
@@ -492,7 +502,21 @@ export class Visual implements powerbi.extensibility.visual.IVisual {
             alca.icone.style("display", cfgIcone.mostrar.value ? null : "none");
         });
 
-        this.limpar.attr("transform", "translate(" + (lay.largura - 14) + ", 13)");
+        // o botao limpar tambem acompanha a escala, senao viraria um alvo
+        // minusculo ao lado de chips grandes
+        const raioLimpar = 9 * lay.escalaGeral;
+        this.limpar.select("circle.limpar-fundo").attr("r", raioLimpar);
+        this.limpar.select("path.limpar-x")
+            .attr("d", this.desenhoDoX(raioLimpar * 0.34))
+            .attr("stroke-width", 1.6 * lay.escalaGeral);
+        this.limpar.attr("transform",
+            "translate(" + (lay.largura - raioLimpar - 5) + ", " + (raioLimpar + 4) + ")");
+    }
+
+    /** Um X centrado na origem, com meia-diagonal `braco`. */
+    private desenhoDoX(braco: number): string {
+        const b = braco.toFixed(2);
+        return "M-" + b + " -" + b + " L" + b + " " + b + " M" + b + " -" + b + " L-" + b + " " + b;
     }
 
     private criarEncurtador(): (texto: string) => string {

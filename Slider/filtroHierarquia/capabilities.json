@@ -188,7 +188,7 @@
           }
         },
         "tamanho": {
-          "displayName": "Tamanho do botão (%)",
+          "displayName": "Tamanho geral (%)",
           "type": {
             "numeric": true
           }

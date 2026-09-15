@@ -26,6 +26,12 @@ class CartaoSlider extends FormattingSettingsCard {
         value: { value: "#BDBDBD" }
     });
 
+    tamanho = new formattingSettings.NumUpDown({
+        name: "tamanho",
+        displayName: "Tamanho geral (%)",
+        value: 100
+    });
+
     espessuraTrilho = new formattingSettings.NumUpDown({
         name: "espessuraTrilho",
         displayName: "Espessura do trilho",
@@ -77,6 +83,7 @@ class CartaoSlider extends FormattingSettingsCard {
     name: string = "slider";
     displayName: string = "Trilho e alça";
     slices: Array<FormattingSettingsSlice> = [
+        this.tamanho,
         this.corTrilho,
         this.corDestaque,
         this.mostrarMarcadores,

@@ -93,7 +93,7 @@ class CartaoAparencia extends FormattingSettingsCard {
 
     tamanho = new formattingSettings.NumUpDown({
         name: "tamanho",
-        displayName: "Tamanho do botão (%)",
+        displayName: "Tamanho geral (%)",
         value: 100
     });
 
